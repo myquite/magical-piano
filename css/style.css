@@ -1,0 +1,1255 @@
+/* ============================================================================
+   Starlight Keys — Storybook Enchanted Conservatory Stylesheet
+   Crafted for Desktop, iPad, and iPhone (Portrait & Landscape)
+   ============================================================================ */
+
+:root {
+  --bg-deep: #120f26;
+  --bg-mid: #1c173d;
+  --glass: rgba(25, 21, 56, 0.72);
+  --glass-strong: rgba(20, 16, 46, 0.88);
+  --border-soft: rgba(255, 240, 198, 0.16);
+  --border-gold: rgba(255, 224, 130, 0.36);
+
+  --text-main: #fff9ec;
+  --text-muted: rgba(235, 226, 255, 0.72);
+  --accent-gold: #ffe066;
+  --accent-mint: #5eead4;
+  --accent-coral: #ff6b7a;
+  --accent-lavender: #b794f6;
+
+  --wood-dark: #2a1814;
+  --wood-mid: #43261e;
+  --wood-highlight: #5d362a;
+  --brass: linear-gradient(90deg, #a67c37, #f5d887, #c29546, #ffe8a3, #9e7331);
+
+  --font-display: 'Fredoka', -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'Segoe UI', sans-serif;
+  --font-body: 'Quicksand', -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'Segoe UI', sans-serif;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--bg-deep);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100dvh;
+  padding-top: var(--safe-top);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  background: radial-gradient(circle at 50% 0%, #241d4d 0%, var(--bg-deep) 65%);
+}
+
+/* ============================================================================
+   TOP STUDIO BAR
+   ============================================================================ */
+.top-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 14px;
+  background: rgba(16, 13, 36, 0.85);
+  border-bottom: 1px solid var(--border-soft);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 20;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.brand-star {
+  font-size: 1.25rem;
+  color: var(--accent-gold);
+  text-shadow: 0 0 12px rgba(255, 224, 102, 0.75);
+  animation: gentleTwinkle 3.2s ease-in-out infinite;
+}
+
+@keyframes gentleTwinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+  50% { transform: scale(1.16) rotate(12deg); opacity: 1; }
+}
+
+.brand-title {
+  font-family: var(--font-display);
+  font-size: 1.12rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: linear-gradient(120deg, #fff8dc 10%, #ffe066 55%, #c4b5fd 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.mode-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.mode-tabs::-webkit-scrollbar { display: none; }
+
+.mode-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 7px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
+}
+
+.mode-tab:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.mode-tab.active {
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.34), rgba(255, 224, 102, 0.24));
+  color: #fffdf5;
+  box-shadow: inset 0 0 0 1px rgba(255, 232, 163, 0.38), 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.voice-picker select,
+.glass-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 7px 28px 7px 12px;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23ffe8a3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M3 4.5L6 7.5l3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.voice-picker select::picker-icon,
+.glass-select::picker-icon {
+  display: none;
+}
+
+.voice-picker select:hover,
+.glass-select:hover {
+  border-color: var(--border-gold);
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.voice-picker select option,
+.glass-select option {
+  background: #1d1840;
+  color: #fff9ec;
+}
+
+.glass-select.compact {
+  padding-left: 10px;
+  padding-right: 22px;
+}
+
+.icon-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  min-width: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.icon-pill:hover {
+  border-color: var(--border-gold);
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.icon-pill.active {
+  background: rgba(255, 224, 102, 0.2);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.metro-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 240, 198, 0.45);
+  transition: transform 0.08s ease, background 0.08s ease, box-shadow 0.08s ease;
+}
+
+.metro-dot.beat-on {
+  background: var(--accent-gold);
+  transform: scale(1.45);
+  box-shadow: 0 0 10px var(--accent-gold);
+}
+
+.metro-dot.beat-accent {
+  background: var(--accent-mint);
+  transform: scale(1.7);
+  box-shadow: 0 0 12px var(--accent-mint);
+}
+
+/* ============================================================================
+   ENCHANTED STAGE & FLOATING RIBBON
+   ============================================================================ */
+.stage-area {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 110px;
+  overflow: hidden;
+  touch-action: none;
+}
+
+#stageCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.stage-ribbon {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  right: 12px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.ribbon-panel {
+  display: none;
+  pointer-events: auto;
+}
+
+.ribbon-panel.active {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ribbon-panel[data-panel="freeplay"].active {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ribbon-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 6px 10px;
+  border-radius: 14px;
+  background: var(--glass);
+  border: 1px solid var(--border-soft);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.harmony-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  border-radius: 14px;
+  background: var(--glass);
+  border: 1px solid var(--border-soft);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  max-width: 100%;
+}
+
+.harmony-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  box-shadow: 0 0 12px var(--accent-gold);
+  flex-shrink: 0;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.harmony-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.harmony-text strong {
+  font-family: var(--font-display);
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.harmony-text span {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.ribbon-controls {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-soft);
+  background: rgba(31, 25, 68, 0.8);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 7px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.pill-btn:hover:not(:disabled) {
+  border-color: var(--border-gold);
+  background: rgba(52, 42, 105, 0.9);
+  transform: translateY(-1px);
+}
+
+.pill-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.pill-btn.primary {
+  background: linear-gradient(135deg, #7c5dfa, #a864fd);
+  border-color: rgba(255, 236, 179, 0.4);
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(124, 93, 250, 0.42);
+}
+
+.pill-btn.primary:hover {
+  background: linear-gradient(135deg, #8c6eff, #b777ff);
+}
+
+.pill-btn.recording {
+  background: rgba(255, 107, 122, 0.25);
+  border-color: var(--accent-coral);
+  color: #ffd5da;
+}
+
+.rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-coral);
+}
+
+.pill-btn.recording .rec-dot {
+  animation: pulseRec 0.9s infinite;
+}
+
+@keyframes pulseRec {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-soft);
+}
+
+.segmented.full {
+  display: flex;
+  width: 100%;
+}
+
+.segmented.full .seg-btn {
+  flex: 1;
+}
+
+.seg-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.seg-btn.active {
+  background: rgba(255, 224, 102, 0.24);
+  color: #fff8dc;
+  box-shadow: inset 0 0 0 1px rgba(255, 224, 102, 0.45);
+}
+
+.speed-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+.speed-chip input[type="range"] {
+  width: 64px;
+  accent-color: var(--accent-gold);
+  cursor: pointer;
+}
+
+.stat-pill {
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(94, 234, 212, 0.14);
+  border: 1px solid rgba(94, 234, 212, 0.35);
+  color: var(--accent-mint);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.stat-pill.gold {
+  background: rgba(255, 224, 102, 0.16);
+  border-color: rgba(255, 224, 102, 0.4);
+  color: var(--accent-gold);
+}
+
+.song-tip-bar {
+  align-self: flex-start;
+  padding: 4px 11px;
+  border-radius: 10px;
+  background: rgba(20, 16, 46, 0.65);
+  border: 1px solid rgba(255, 236, 179, 0.14);
+  font-size: 0.75rem;
+  color: rgba(255, 248, 225, 0.85);
+  max-width: 680px;
+}
+
+.theory-mood {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.chord-pads {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.chord-pads::-webkit-scrollbar { display: none; }
+
+.chord-pad {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(25, 20, 56, 0.8);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  backdrop-filter: blur(8px);
+}
+
+.chord-pad:hover {
+  transform: translateY(-2px);
+  border-color: var(--pad-color, var(--accent-gold));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.chord-pad.active {
+  background: color-mix(in srgb, var(--pad-color, #ffe066) 24%, rgba(25, 20, 56, 0.9));
+  border-color: var(--pad-color, var(--accent-gold));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--pad-color, #ffe066) 50%, transparent);
+}
+
+.chord-pad .pad-roman {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--pad-color, var(--accent-gold));
+  opacity: 0.92;
+}
+
+.chord-pad .pad-symbol {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.audio-hint {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgba(255, 232, 163, 0.94);
+  color: #201742;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(255, 224, 102, 0.45);
+  pointer-events: none;
+  z-index: 15;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.audio-hint.hidden {
+  opacity: 0;
+  transform: translate(-50%, 8px);
+}
+
+/* ============================================================================
+   KEYBOARD CONSOLE (WALNUT RAIL + TACTILE IVORY/EBONY KEYS)
+   ============================================================================ */
+.keyboard-console {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: clamp(210px, 44dvh, 360px);
+  padding-bottom: var(--safe-bottom);
+  background: linear-gradient(180deg, #321d17 0%, #1b100e 100%);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.55);
+  z-index: 15;
+}
+
+.keybed-rail {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 14px;
+  background: linear-gradient(180deg, var(--wood-highlight) 0%, var(--wood-mid) 45%, var(--wood-dark) 100%);
+  border-top: 1px solid rgba(255, 224, 150, 0.25);
+  border-bottom: 3px solid transparent;
+  border-image: var(--brass) 1;
+}
+
+.rail-left,
+.rail-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rail-btn {
+  width: 30px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 224, 150, 0.32);
+  background: rgba(0, 0, 0, 0.28);
+  color: #ffe8a3;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, transform 0.1s ease;
+}
+
+.rail-btn:hover {
+  background: rgba(255, 224, 150, 0.16);
+}
+.rail-btn:active {
+  transform: scale(0.94);
+}
+
+.range-label {
+  font-family: var(--font-display);
+  font-size: 0.84rem;
+  color: #fce8b2;
+  min-width: 62px;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.mini-range-bar {
+  position: relative;
+  width: 140px;
+  height: 18px;
+  border-radius: 5px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 250, 235, 0.18) 0px,
+    rgba(255, 250, 235, 0.18) 4px,
+    rgba(0, 0, 0, 0.25) 4px,
+    rgba(0, 0, 0, 0.25) 5px
+  );
+  border: 1px solid rgba(255, 224, 150, 0.26);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.mini-window {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(255, 224, 102, 0.75), rgba(244, 180, 65, 0.65));
+  box-shadow: 0 0 8px rgba(255, 224, 102, 0.55);
+  transition: left 0.18s ease, width 0.18s ease;
+}
+
+.sustain-pedal {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 224, 150, 0.35);
+  background: linear-gradient(180deg, rgba(255, 230, 150, 0.14), rgba(0, 0, 0, 0.32));
+  color: #fce8b2;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.sustain-pedal .pedal-gem {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(255, 224, 150, 0.35);
+  transition: all 0.14s ease;
+}
+
+.sustain-pedal.active {
+  background: linear-gradient(180deg, rgba(255, 224, 102, 0.36), rgba(217, 155, 38, 0.38));
+  border-color: var(--accent-gold);
+  color: #fffdf5;
+  box-shadow: 0 0 14px rgba(255, 224, 102, 0.45);
+}
+
+.sustain-pedal.active .pedal-gem {
+  background: var(--accent-gold);
+  box-shadow: 0 0 10px var(--accent-gold);
+}
+
+/* Piano Frame & Cheek Blocks */
+.keyboard-frame {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+  padding: 0 0 6px;
+  background: #140d0c;
+}
+
+.cheek-block {
+  flex: 0 0 14px;
+  background: linear-gradient(90deg, #271511 0%, #4b2a20 55%, #23120e 100%);
+  box-shadow: inset 0 2px 6px rgba(255, 210, 160, 0.12);
+}
+
+.piano-keyboard {
+  position: relative;
+  flex: 1 1 auto;
+  height: 100%;
+  touch-action: none;
+  overflow: hidden;
+  background: #120d18;
+  /* Red felt strip along the very top of the keys like a real grand piano! */
+  border-top: 3px solid #7d2232;
+}
+
+.keys-white-layer {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: 2px;
+  padding: 0 1px;
+}
+
+.keys-black-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  pointer-events: none;
+}
+
+/* Base Key Styling */
+.piano-key {
+  position: relative;
+  border: none;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  cursor: pointer;
+  touch-action: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  font-family: var(--font-body);
+}
+
+/* Sculpted Warm Ivory White Keys */
+.white-key {
+  flex: 1 1 0;
+  height: 100%;
+  border-radius: 0 0 9px 9px;
+  background: linear-gradient(180deg, #f3ede0 0%, #fffdf7 12%, #fffcf4 86%, #ede4d2 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -5px 0 rgba(206, 193, 170, 0.72),
+    0 4px 7px rgba(0, 0, 0, 0.35);
+  color: #463a5c;
+  padding-bottom: 14px;
+  transition: transform 0.05s ease, box-shadow 0.06s ease, background 0.1s ease;
+}
+
+.white-key:hover {
+  background: linear-gradient(180deg, #faf5ea 0%, #ffffff 15%, #fffdf7 88%, #f2ead8 100%);
+}
+
+.white-key.pressed,
+.white-key.demo-active {
+  transform: translateY(3px);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--note-color) 28%, #fffdf7) 0%,
+    color-mix(in srgb, var(--note-color) 52%, #ffffff) 100%
+  );
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.14),
+    inset 0 -2px 0 color-mix(in srgb, var(--note-color) 75%, #8a7c66),
+    0 0 18px var(--note-glow);
+}
+
+.rainbow-off .white-key.pressed,
+.rainbow-off .white-key.demo-active {
+  background: linear-gradient(180deg, #ede5d4 0%, #f9f3e3 40%, #ffe9a8 100%);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.16), 0 0 14px rgba(255, 224, 102, 0.55);
+}
+
+/* Soft Chroma Color Strip along bottom edge of white keys */
+.key-chroma-bar {
+  position: absolute;
+  bottom: 5px;
+  left: 16%;
+  right: 16%;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--note-color);
+  opacity: 0.62;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.white-key.pressed .key-chroma-bar,
+.white-key.demo-active .key-chroma-bar {
+  opacity: 1;
+  transform: scaleX(1.12);
+}
+
+.rainbow-off .key-chroma-bar {
+  opacity: 0;
+}
+
+/* Beveled Satin Ebony Black Keys */
+.black-key {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  pointer-events: auto;
+  z-index: 4;
+  border-radius: 0 0 7px 7px;
+  background: linear-gradient(180deg, #352f4a 0%, #1d192b 14%, #141120 82%, #29233d 100%);
+  box-shadow:
+    inset 2px 0 2px rgba(255, 255, 255, 0.1),
+    inset -2px 0 2px rgba(0, 0, 0, 0.55),
+    inset 0 -7px 0 #090710,
+    0 5px 10px rgba(0, 0, 0, 0.58);
+  color: rgba(255, 248, 225, 0.78);
+  padding-bottom: 11px;
+  transition: transform 0.05s ease, box-shadow 0.06s ease, background 0.1s ease;
+}
+
+.black-key:hover {
+  background: linear-gradient(180deg, #433b5c 0%, #262038 14%, #1a1629 82%, #342c4c 100%);
+}
+
+.black-key.pressed,
+.black-key.demo-active {
+  transform: translateY(3px);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--note-color) 42%, #201a33) 0%,
+    color-mix(in srgb, var(--note-color) 85%, #19142b) 100%
+  );
+  box-shadow:
+    inset 0 -2px 0 rgba(0, 0, 0, 0.45),
+    0 0 18px var(--note-glow);
+  color: #120f26;
+}
+
+.rainbow-off .black-key.pressed,
+.rainbow-off .black-key.demo-active {
+  background: linear-gradient(180deg, #4f466b 0%, #d4af37 100%);
+  color: #161229;
+}
+
+/* Key Labels */
+.key-label {
+  font-size: clamp(0.64rem, 1.3vw, 0.84rem);
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.white-key .key-label.is-c-note {
+  color: #7c3aed;
+  font-weight: 800;
+}
+
+.black-key .key-label {
+  font-size: clamp(0.54rem, 0.95vw, 0.7rem);
+  opacity: 0.85;
+}
+
+/* Scale Guide Dots & Root Stars */
+.key-scale-dot {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--note-color);
+  box-shadow: 0 0 8px var(--note-glow);
+  margin-bottom: 6px;
+  font-size: 0.72rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.piano-key.in-scale .key-scale-dot {
+  display: inline-flex;
+}
+
+.piano-key.is-scale-root .key-scale-dot {
+  width: 20px;
+  height: 20px;
+  background: #ffe066;
+  color: #261b47;
+  box-shadow: 0 0 12px rgba(255, 224, 102, 0.85);
+}
+
+.piano-key.out-of-scale:not(.pressed):not(.is-target) {
+  filter: saturate(0.4) brightness(0.92);
+}
+
+/* Chord Highlight */
+.piano-key.chord-highlight:not(.pressed) {
+  box-shadow: inset 0 0 0 3px var(--note-color), 0 0 16px var(--note-glow);
+}
+
+/* Guided Target Key Beacon & Piano Finger Badge */
+.piano-key.is-target:not(.pressed) {
+  animation: targetPulse 1.15s ease-in-out infinite;
+}
+
+@keyframes targetPulse {
+  0%, 100% {
+    box-shadow: inset 0 0 0 3px #ffe066, 0 0 14px rgba(255, 224, 102, 0.75);
+  }
+  50% {
+    box-shadow: inset 0 0 0 4px var(--note-color), 0 0 24px var(--note-glow);
+  }
+}
+
+.key-finger-badge {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffe066, #ffb347);
+  color: #1f173d;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(255, 200, 75, 0.75);
+  margin-bottom: 6px;
+  z-index: 3;
+  pointer-events: none;
+  animation: popBounce 0.9s ease-in-out infinite alternate;
+}
+
+.black-key .key-finger-badge {
+  width: 20px;
+  height: 20px;
+  font-size: 0.72rem;
+}
+
+.key-finger-badge.visible {
+  display: inline-flex;
+}
+
+@keyframes popBounce {
+  from { transform: translateY(0); }
+  to { transform: translateY(-4px); }
+}
+
+/* ============================================================================
+   SETTINGS DRAWER / MODAL
+   ============================================================================ */
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 24, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+
+.settings-backdrop[hidden] {
+  display: none;
+}
+
+.settings-drawer {
+  width: min(440px, 100%);
+  max-height: 88dvh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #241d4d 0%, #171333 100%);
+  border: 1px solid var(--border-gold);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.drawer-header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--accent-gold);
+}
+
+.close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.drawer-body {
+  padding: 16px 18px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.setting-label,
+.setting-label-row {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.setting-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.86rem;
+  font-weight: 700;
+  padding: 4px 0;
+}
+
+.range-input {
+  width: 100%;
+  accent-color: var(--accent-gold);
+  cursor: pointer;
+}
+
+/* Toggle Switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch .slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--border-soft);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.switch .slider::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff8e1;
+  transition: transform 0.2s ease;
+}
+.switch input:checked + .slider {
+  background: linear-gradient(135deg, #8b5cf6, #f472b6);
+}
+.switch input:checked + .slider::before {
+  transform: translateX(19px);
+}
+
+.shortcuts-card {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-soft);
+}
+
+.shortcuts-card h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--accent-gold);
+}
+
+.shortcuts-card ul {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.shortcuts-card code {
+  background: rgba(255, 232, 163, 0.14);
+  color: #ffe8a3;
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-size: 0.76rem;
+}
+
+/* ============================================================================
+   RESPONSIVE POLISH (iPhone Portrait, iPhone Landscape, iPad)
+   ============================================================================ */
+@media (max-width: 860px) {
+  .brand-title {
+    display: none;
+  }
+  .mode-tab {
+    padding: 6px 10px;
+    font-size: 0.78rem;
+  }
+  .theory-mood {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .top-bar {
+    padding: 6px 8px;
+    gap: 5px;
+  }
+  .brand {
+    display: none;
+  }
+  .mode-tabs {
+    flex-shrink: 0;
+    gap: 2px;
+    padding: 2px;
+  }
+  .mode-tab .tab-label {
+    display: none;
+  }
+  .mode-tab {
+    padding: 6px 9px;
+    font-size: 0.96rem;
+    min-width: 34px;
+    justify-content: center;
+  }
+  .top-actions {
+    gap: 5px;
+  }
+  .voice-picker select {
+    max-width: 134px;
+    padding: 6px 26px 6px 9px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .icon-pill {
+    height: 32px;
+    min-width: 32px;
+    padding: 0 7px;
+  }
+  .metro-text {
+    display: none;
+  }
+  .mini-range-bar {
+    width: 78px;
+  }
+  .cheek-block {
+    flex: 0 0 6px;
+  }
+  .stage-ribbon {
+    top: 6px;
+    left: 8px;
+    right: 8px;
+  }
+  .song-tip-bar {
+    display: none;
+  }
+  .keyboard-console {
+    height: clamp(220px, 46dvh, 320px);
+  }
+}
+
+/* Landscape Phone Optimization — maximize playable keybed height! */
+@media (max-height: 500px) {
+  .top-bar {
+    padding: 4px 10px;
+  }
+  .mode-tab {
+    padding: 4px 10px;
+  }
+  .stage-ribbon {
+    top: 4px;
+  }
+  .ribbon-row {
+    padding: 4px 8px;
+  }
+  .song-tip-bar {
+    display: none;
+  }
+  .keybed-rail {
+    padding: 4px 10px;
+  }
+  .keyboard-console {
+    height: 54dvh;
+  }
+}

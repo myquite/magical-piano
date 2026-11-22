@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Starlight Keys" />
+  <meta name="theme-color" content="#16122e" />
+  <title>Starlight Keys — Magical Learning Piano</title>
+
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231b1738'/%3E%3Crect x='10' y='26' width='11' height='28' rx='3' fill='%23fffaf0'/%3E%3Crect x='23' y='26' width='11' height='28' rx='3' fill='%23fffaf0'/%3E%3Crect x='36' y='26' width='11' height='28' rx='3' fill='%23fffaf0'/%3E%3Crect x='49' y='26' width='6' height='28' rx='2' fill='%23fffaf0'/%3E%3Crect x='18' y='26' width='7' height='17' rx='2' fill='%2319142c'/%3E%3Crect x='31' y='26' width='7' height='17' rx='2' fill='%2319142c'/%3E%3Cpath d='M32 6l2.6 6.4L41 15l-6.4 2.6L32 24l-2.6-6.4L23 15l6.4-2.6z' fill='%23ffe066'/%3E%3C/svg%3E" />
+
+  <!-- Friendly storybook rounded fonts with instant graceful system fallbacks -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- ==================== TOP STUDIO BAR ==================== -->
+    <header class="top-bar">
+      <div class="brand">
+        <span class="brand-star" aria-hidden="true">✦</span>
+        <span class="brand-title">Starlight Keys</span>
+      </div>
+
+      <nav class="mode-tabs" role="tablist" aria-label="Learning Modes">
+        <button class="mode-tab active" data-mode="freeplay" role="tab" aria-selected="true">
+          <span class="tab-icon">🎹</span><span class="tab-label">Free Play</span>
+        </button>
+        <button class="mode-tab" data-mode="songs" role="tab" aria-selected="false">
+          <span class="tab-icon">🌟</span><span class="tab-label">Songs</span>
+        </button>
+        <button class="mode-tab" data-mode="theory" role="tab" aria-selected="false">
+          <span class="tab-icon">🎼</span><span class="tab-label">Scales &amp; Chords</span>
+        </button>
+        <button class="mode-tab" data-mode="game" role="tab" aria-selected="false">
+          <span class="tab-icon">🦉</span><span class="tab-label">Ear &amp; Sight</span>
+        </button>
+      </nav>
+
+      <div class="top-actions">
+        <label class="voice-picker" aria-label="Instrument Voice">
+          <select id="instrumentSelect" title="Choose Instrument Sound"></select>
+        </label>
+
+        <button id="metronomeBtn" class="icon-pill" title="Toggle Metronome" aria-pressed="false">
+          <span class="metro-dot" id="metroDot"></span>
+          <span class="metro-text" id="metroLabel">96</span>
+        </button>
+
+        <button id="settingsBtn" class="icon-pill" title="Piano Settings &amp; Shortcuts" aria-expanded="false">
+          ⚙️
+        </button>
+      </div>
+    </header>
+
+    <!-- ==================== ENCHANTED STAGE ==================== -->
+    <main class="stage-area" id="stageArea">
+      <canvas id="stageCanvas" aria-label="Interactive musical starlight stage"></canvas>
+
+      <!-- Contextual Mode Ribbon (floats cleanly at top of stage) -->
+      <div class="stage-ribbon" id="stageRibbon">
+        <!-- FREE PLAY PANEL -->
+        <div class="ribbon-panel active" data-panel="freeplay">
+          <div class="harmony-badge" id="harmonyBadge">
+            <span class="harmony-dot" id="harmonyDot"></span>
+            <div class="harmony-text">
+              <strong id="harmonyTitle">Tap keys or type A–L to play</strong>
+              <span id="harmonySubtitle">Play 2+ notes to discover real intervals &amp; chords</span>
+            </div>
+          </div>
+
+          <div class="ribbon-controls">
+            <button id="recordBtn" class="pill-btn" title="Record a melody">
+              <span class="rec-dot"></span> Record
+            </button>
+            <button id="replayBtn" class="pill-btn" title="Replay recorded melody" disabled>
+              ▶ Replay
+            </button>
+          </div>
+        </div>
+
+        <!-- LEARN SONGS PANEL -->
+        <div class="ribbon-panel" data-panel="songs">
+          <div class="ribbon-row">
+            <select id="songSelect" class="glass-select" aria-label="Select Song"></select>
+
+            <div class="segmented" role="group" aria-label="Practice Style">
+              <button class="seg-btn active" data-song-style="wait" title="Waits for you to hit each note">Wait</button>
+              <button class="seg-btn" data-song-style="play" title="Play along in tempo">Tempo</button>
+              <button class="seg-btn" data-song-style="demo" title="Listen and watch first">Listen</button>
+            </div>
+
+            <button id="songPlayBtn" class="pill-btn primary">▶ Start</button>
+
+            <label class="speed-chip" title="Practice Speed">
+              <span id="speedLabel">100%</span>
+              <input id="speedSlider" type="range" min="50" max="125" step="5" value="100" />
+            </label>
+
+            <span class="stat-pill" id="songStatPill">0 / 0</span>
+          </div>
+          <div class="song-tip-bar" id="songTipBar"></div>
+        </div>
+
+        <!-- SCALES & CHORDS PANEL -->
+        <div class="ribbon-panel" data-panel="theory">
+          <div class="ribbon-row">
+            <select id="rootSelect" class="glass-select compact" aria-label="Root Note"></select>
+            <select id="scaleSelect" class="glass-select" aria-label="Scale Type"></select>
+            <button id="playScaleBtn" class="pill-btn">▶ Hear Scale</button>
+            <span class="theory-mood" id="theoryMood"></span>
+          </div>
+          <div class="chord-pads" id="chordPads" aria-label="Diatonic Chords"></div>
+        </div>
+
+        <!-- EAR & SIGHT GAME PANEL -->
+        <div class="ribbon-panel" data-panel="game">
+          <div class="ribbon-row">
+            <div class="segmented" role="group" aria-label="Game Type">
+              <button class="seg-btn active" data-game-kind="sight">👁️ Sight-Read</button>
+              <button class="seg-btn" data-game-kind="echo">👂 Melodic Echo</button>
+            </div>
+
+            <div class="segmented" role="group" aria-label="Difficulty">
+              <button class="seg-btn active" data-game-diff="easy">Easy</button>
+              <button class="seg-btn" data-game-diff="medium">Med</button>
+              <button class="seg-btn" data-game-diff="pro">Pro</button>
+            </div>
+
+            <button id="gameReplayBtn" class="pill-btn">🔊 Hear</button>
+            <button id="gameHintBtn" class="pill-btn">💡 Hint</button>
+            <button id="gameNextBtn" class="pill-btn">↻ New</button>
+
+            <span class="stat-pill gold" id="gameStreakPill">🔥 0 • Best 0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subtle First-Tap Audio Hint (auto-dismisses on first tap/key) -->
+      <div class="audio-hint" id="audioHint">
+        <span>✨ Tap any key to awaken the sound</span>
+      </div>
+    </main>
+
+    <!-- ==================== KEYBOARD CONSOLE ==================== -->
+    <section class="keyboard-console" aria-label="Interactive Piano Keyboard">
+      <!-- Walnut & Brass Keybed Rail -->
+      <div class="keybed-rail">
+        <div class="rail-left">
+          <button id="octDownBtn" class="rail-btn" title="Octave Down (Z)" aria-label="Octave Down">‹</button>
+          <span class="range-label" id="rangeLabel">C4 – C6</span>
+          <button id="octUpBtn" class="rail-btn" title="Octave Up (X)" aria-label="Octave Up">›</button>
+
+          <!-- Interactive Full-Range Mini Piano Bar -->
+          <div class="mini-range-bar" id="miniRangeBar" title="Tap to jump octaves">
+            <div class="mini-window" id="miniWindow"></div>
+          </div>
+        </div>
+
+        <div class="rail-right">
+          <button id="sustainBtn" class="sustain-pedal" title="Sustain Pedal (Hold Spacebar or Tap)" aria-pressed="false">
+            <span class="pedal-gem"></span>
+            <span class="pedal-text">Sustain</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tactile Piano Keys -->
+      <div class="keyboard-frame">
+        <div class="cheek-block left" aria-hidden="true"></div>
+        <div id="pianoKeyboard" class="piano-keyboard" role="application" aria-label="Playable Piano Keys"></div>
+        <div class="cheek-block right" aria-hidden="true"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ==================== SETTINGS DRAWER / POPOVER ==================== -->
+  <div class="settings-backdrop" id="settingsBackdrop" hidden>
+    <div class="settings-drawer" role="dialog" aria-modal="true" aria-label="Piano Settings">
+      <div class="drawer-header">
+        <h2>✨ Studio Settings</h2>
+        <button id="closeSettingsBtn" class="close-btn" aria-label="Close settings">✕</button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="setting-group">
+          <label class="setting-label">Key Labels</label>
+          <div class="segmented full" id="labelModeGroup">
+            <button class="seg-btn active" data-label-mode="notes">Notes (C4)</button>
+            <button class="seg-btn" data-label-mode="solfege">Do Re Mi</button>
+            <button class="seg-btn" data-label-mode="keys">Keys (A–L)</button>
+            <button class="seg-btn" data-label-mode="none">Clean</button>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Visible Keyboard Span</label>
+          <div class="segmented full" id="spanGroup">
+            <button class="seg-btn" data-span="8">1 Oct (Big)</button>
+            <button class="seg-btn" data-span="11">1.5 Oct</button>
+            <button class="seg-btn active" data-span="15">2 Oct</button>
+            <button class="seg-btn" data-span="22">3 Oct</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <span>🌈 Rainbow Chroma-Notes Keys</span>
+          <label class="switch">
+            <input type="checkbox" id="rainbowToggle" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <span>🎼 Show Real-Time Musical Staff</span>
+          <label class="switch">
+            <input type="checkbox" id="staffToggle" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label-row">
+            <label for="volumeSlider">🔊 Master Volume</label>
+            <span id="volumeVal">82%</span>
+          </div>
+          <input id="volumeSlider" class="range-input" type="range" min="0" max="100" value="82" />
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label-row">
+            <label for="bpmSlider">⏱️ Metronome Tempo</label>
+            <span id="bpmVal">96 BPM</span>
+          </div>
+          <input id="bpmSlider" class="range-input" type="range" min="40" max="180" value="96" />
+        </div>
+
+        <div class="shortcuts-card">
+          <h3>⌨️ Computer Keyboard &amp; Touch Tips</h3>
+          <ul>
+            <li><strong>White keys:</strong> <code>A S D F G H J K L ; '</code></li>
+            <li><strong>Black keys:</strong> <code>W E   T Y U   O P</code></li>
+            <li><strong>Octave Shift:</strong> <code>Z</code> (down) &amp; <code>X</code> (up)</li>
+            <li><strong>Sustain Pedal:</strong> Hold <code>Spacebar</code> or tap <em>Sustain</em></li>
+            <li><strong>iPhone / iPad:</strong> Play up to 10 fingers at once or slide for a glissando! Make sure your side Silent switch is off.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

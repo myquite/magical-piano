@@ -1,10 +1,19 @@
 // ============================================================================
-// Starlight Keys — Enchanted Stage Canvas Engine
-// Renders twilight starfield, aurora ribbons, pitch-aligned fireflies,
-// Pip the Musical Owl mascot, real-time musical staff, and falling song notes.
+// Nocturne Keys — Midnight Atelier Stage Canvas Engine
+// Renders warm lamplight twilight, drifting lo-fi dust motes & subtle rain,
+// harmonic chord constellations, true Grand Staff (Treble + Bass), scrolling
+// sheet music with key/time signatures & rhythms, and optional Waterfall view.
 // ============================================================================
 
-import { midiToNoteInfo, PITCH_COLORS } from './musicTheory.js';
+import {
+  midiToNoteInfo,
+  getDisplayAccidental,
+  PITCH_COLORS,
+  SHARP_TREBLE_STEPS,
+  SHARP_BASS_STEPS,
+  FLAT_TREBLE_STEPS,
+  FLAT_BASS_STEPS,
+} from './musicTheory.js';
 
 export class StageCanvas {
   constructor(canvasEl, keyboardUI) {
@@ -16,54 +25,70 @@ export class StageCanvas {
     this.height = 0;
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-    // Visual state
+    // Visual & pedagogical state
     this.showStaff = true;
     this.preferFlats = false;
+    this.keySigCount = 0;         // +sharps / -flats for Grand Staff
     this.sustainActive = false;
-    this.activeNotes = new Map(); // midi -> { startTime, color, info }
-    this.promptNotes = [];        // Sight-reading target notes [{ midi, state: 'waiting'|'correct'|'wrong' }]
-    this.fallingState = null;     // { song, currentBeat, waitIndex, lookaheadBeats, hitEvents: Set<number> }
-    this.floatingTexts = [];      // Celebratory floating badges ("Sparkle!", "Perfect!", etc.)
-    this.notePills = [];          // Touch-friendly floating pitch pills rising above struck keys
+    this.vinylActive = false;
+    this.harmonicTint = false;    // When false, uses warm amber/champagne tones; when true, muted pitch palette
+    this.songView = 'sheet';      // 'sheet' | 'waterfall'
+    this.songGuidance = 'guided'; // 'guided' | 'assist' | 'pure'
 
-    // Particle systems
-    this.stars = [];
+    this.activeNotes = new Map(); // midi -> { midi, startTime, info, isDemo }
+    this.promptNotes = [];        // [{ midi, state: 'waiting'|'correct'|'wrong', clef?: 'treble'|'bass', label?: string }]
+    this.transcribedNotes = [];   // Echo ear-training notes revealed on staff [{ midi }]
+    this.fallingState = null;     // { song, currentBeat, waitIndex, lookaheadBeats, hitEvents }
+    this.floatingTexts = [];      // Celebratory / milestone captions
+    this.notePills = [];          // Subtle rising pitch tags above keys
+    this.constellations = [];     // Fading golden chord-arc connections
+
+    // Marginalia whisper (replaces cartoon mascot speech)
+    this.marginalia = {
+      text: '',
+      tone: 'warm', // 'warm' | 'sage' | 'amber' | 'rose'
+      timer: 0,
+      maxDuration: 3.2,
+    };
+
+    // Atmospheric particles (warm dust motes, bokeh, delicate rain streaks)
+    this.motes = [];
+    this.raindrops = [];
     this.particles = [];
     this.ripples = [];
-    this.auroraEnergy = 0;
-
-    // Pip the Musical Owl animation state
-    this.owl = {
-      hop: 0,
-      hopVel: 0,
-      wingFlap: 0,
-      blinkTimer: 2.5,
-      blinking: false,
-      lookX: 0,
-      mood: 'happy', // 'happy' | 'curious' | 'celebrate' | 'singing'
-      moodTimer: 0,
-      speech: '',
-      speechTimer: 0,
-    };
+    this.lampEnergy = 0;
 
     this._lastTime = performance.now();
     this._rafId = null;
 
-    this._initStars();
+    this._initAtmosphere();
     this.resize();
     this._startLoop();
   }
 
-  _initStars() {
-    this.stars = [];
-    for (let i = 0; i < 64; i++) {
-      this.stars.push({
+  _initAtmosphere() {
+    this.motes = [];
+    for (let i = 0; i < 42; i++) {
+      this.motes.push({
         x: Math.random(),
-        y: Math.random() * 0.85,
-        r: 0.7 + Math.random() * 1.6,
+        y: Math.random() * 0.92,
+        r: 0.9 + Math.random() * 2.1,
         phase: Math.random() * Math.PI * 2,
-        speed: 0.8 + Math.random() * 1.6,
-        tint: i % 5 === 0 ? '#ffe699' : i % 7 === 0 ? '#c4b5fd' : '#ffffff',
+        speed: 0.4 + Math.random() * 0.9,
+        driftX: (Math.random() - 0.5) * 0.008,
+        driftY: -(0.004 + Math.random() * 0.009),
+        tint: i % 3 === 0 ? '#f2c278' : i % 5 === 0 ? '#a994db' : '#f5ebd6',
+      });
+    }
+
+    this.raindrops = [];
+    for (let i = 0; i < 28; i++) {
+      this.raindrops.push({
+        x: Math.random(),
+        y: Math.random(),
+        len: 14 + Math.random() * 26,
+        speed: 0.22 + Math.random() * 0.28,
+        alpha: 0.04 + Math.random() * 0.07,
       });
     }
   }
@@ -89,71 +114,101 @@ export class StageCanvas {
     this.preferFlats = Boolean(preferFlats);
   }
 
+  setKeySignature(count = 0) {
+    this.keySigCount = count || 0;
+  }
+
   setSustain(active) {
     this.sustainActive = Boolean(active);
+  }
+
+  setVinylActive(active) {
+    this.vinylActive = Boolean(active);
+  }
+
+  setHarmonicTint(enabled) {
+    this.harmonicTint = Boolean(enabled);
+  }
+
+  setSongView(view) {
+    this.songView = view === 'waterfall' ? 'waterfall' : 'sheet';
+  }
+
+  setSongGuidance(level) {
+    this.songGuidance = level || 'guided';
   }
 
   setPromptNotes(notes) {
     this.promptNotes = notes || [];
   }
 
+  setTranscribedNotes(notes) {
+    this.transcribedNotes = notes || [];
+  }
+
   setFallingState(state) {
     this.fallingState = state || null;
   }
 
-  owlSay(text, mood = 'happy', duration = 3.2) {
-    this.owl.speech = text;
-    this.owl.speechTimer = duration;
-    this.owl.mood = mood;
-    this.owl.moodTimer = duration;
-    if (mood === 'celebrate') {
-      this.owl.hopVel = -210;
-      this.owl.wingFlap = 1.0;
-    } else if (mood === 'singing') {
-      this.owl.hopVel = -110;
-      this.owl.wingFlap = 0.6;
-    }
+  showNote(text, tone = 'warm', duration = 3.2) {
+    this.marginalia.text = text;
+    this.marginalia.tone = tone;
+    this.marginalia.timer = duration;
+    this.marginalia.maxDuration = duration;
   }
 
-  celebrateBurst(message = '✨ Bravo!') {
-    this.owlSay(message, 'celebrate', 3.5);
-    const cx = this.width * 0.5;
-    const cy = this.height * 0.42;
-    const glyphs = ['✦', '♪', '♫', '★', '✧'];
+  // Alias for smooth migration
+  owlSay(text, mood = 'warm', duration = 3.2) {
+    const toneMap = { celebrate: 'sage', curious: 'amber', singing: 'warm', happy: 'warm' };
+    this.showNote(text, toneMap[mood] || 'warm', duration);
+  }
 
-    for (let i = 0; i < 42; i++) {
-      const angle = (Math.PI * 2 * i) / 42 + (Math.random() - 0.5) * 0.3;
-      const speed = 90 + Math.random() * 210;
-      const col = PITCH_COLORS[i % PITCH_COLORS.length].hex;
+  celebrateBurst(message = 'Etude Complete') {
+    this.showNote(message, 'sage', 4.0);
+    const cx = this.width * 0.5;
+    const cy = this.height * 0.44;
+
+    // Tasteful golden stardust shimmer (no cartoon confetti)
+    for (let i = 0; i < 28; i++) {
+      const angle = (Math.PI * 2 * i) / 28 + (Math.random() - 0.5) * 0.25;
+      const speed = 55 + Math.random() * 130;
+      const col = i % 2 === 0 ? '#f2c278' : '#7cc4a9';
       this.particles.push({
-        x: cx + (Math.random() - 0.5) * 140,
-        y: cy + (Math.random() - 0.5) * 50,
+        x: cx + (Math.random() - 0.5) * 160,
+        y: cy + (Math.random() - 0.5) * 40,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 70,
-        size: 5 + Math.random() * 9,
-        alpha: 1,
-        life: 1.1 + Math.random() * 0.9,
-        maxLife: 2.0,
+        vy: Math.sin(angle) * speed - 40,
+        size: 2.5 + Math.random() * 4.5,
+        alpha: 0.9,
+        life: 1.2 + Math.random() * 0.9,
+        maxLife: 2.1,
         color: col,
-        glyph: i % 3 === 0 ? glyphs[i % glyphs.length] : null,
-        gravity: 160,
+        gravity: 35,
       });
     }
 
-    this.addFloatingText(message, cx, cy - 10, '#ffe66d');
+    this.addFloatingText(message, cx, cy - 8, '#f5d494');
   }
 
-  addFloatingText(text, x, y, color = '#ffe66d') {
+  addFloatingText(text, x, y, color = '#f5d494') {
     this.floatingTexts.push({
       text,
       x,
       y,
-      vy: -36,
+      vy: -24,
       alpha: 1,
-      life: 1.25,
-      maxLife: 1.25,
+      life: 1.7,
+      maxLife: 1.7,
       color,
     });
+  }
+
+  _noteAccentColor(info) {
+    return this.harmonicTint ? info.color.hex : '#e8b86d';
+  }
+
+  _noteGlowColor(info) {
+    return this.harmonicTint ? info.color.glow : 'rgba(232, 184, 109, 0.55)';
   }
 
   triggerNoteVisual(midi, isDemo = false) {
@@ -169,59 +224,73 @@ export class StageCanvas {
     const geom = this.keyboard.getKeyGeometry(midi, stageRect);
     const x = geom ? geom.centerX : this.width * 0.5;
     const y = this.height - 6;
+    const col = this._noteAccentColor(info);
 
-    // Gentle aurora glow boost
-    this.auroraEnergy = Math.min(1, this.auroraEnergy + 0.24);
+    this.lampEnergy = Math.min(1, this.lampEnergy + 0.22);
 
-    // Owl perks up & glances toward the note!
-    this.owl.lookX = Math.max(-1, Math.min(1, (x / Math.max(1, this.width)) * 2 - 1));
-    if (this.owl.hop >= 0) {
-      this.owl.hopVel = -85;
-    }
-    this.owl.wingFlap = Math.max(this.owl.wingFlap, 0.45);
-
-    // Expanding starlight ripple at key edge
+    // Subtle warm ink-and-gold ripple above the key
     this.ripples.push({
       x,
-      y: y - 4,
-      r: 8,
-      maxR: 62 + Math.random() * 28,
-      alpha: 0.72,
-      color: info.color.hex,
+      y: y - 3,
+      r: 6,
+      maxR: 48 + Math.random() * 22,
+      alpha: 0.55,
+      color: col,
     });
 
-    // Floating note pill above the key (especially helpful on touch screens where fingers cover key labels!)
+    // If 2+ keys are simultaneously held, draw a delicate harmonic constellation arc!
+    if (this.activeNotes.size >= 2) {
+      const pts = [];
+      for (const entry of this.activeNotes.values()) {
+        const g = this.keyboard.getKeyGeometry(entry.midi, stageRect);
+        if (g) {
+          pts.push({
+            x: g.centerX,
+            y: this.height - 26 - ((entry.midi - 48) % 24) * 2.2,
+            color: this._noteAccentColor(entry.info),
+          });
+        }
+      }
+      if (pts.length >= 2) {
+        pts.sort((a, b) => a.x - b.x);
+        this.constellations.push({
+          points: pts,
+          life: 1.35,
+          maxLife: 1.35,
+          color: col,
+        });
+        if (this.constellations.length > 6) this.constellations.shift();
+      }
+    }
+
+    // Floating note pill above key (only outside sheet/waterfall song modes)
     if (!isDemo && !(this.fallingState && this.fallingState.song)) {
       this.notePills.push({
         label: info.fullName,
         x: Math.max(26, Math.min(this.width - 26, x)),
-        y: y - 18,
-        vy: -42,
+        y: y - 16,
+        vy: -34,
         life: 0.85,
         maxLife: 0.85,
-        color: info.color.hex,
+        color: col,
       });
-      if (this.notePills.length > 16) this.notePills.shift();
+      if (this.notePills.length > 14) this.notePills.shift();
     }
 
-    // Firefly & musical note burst
-    const count = isDemo ? 7 : 12;
-    const glyphs = ['♪', '♫', '✦', '✧'];
+    // Gentle rising warm light motes
+    const count = isDemo ? 4 : 7;
     for (let i = 0; i < count; i++) {
-      const spread = (Math.random() - 0.5) * 90;
-      const speedY = -(75 + Math.random() * 145);
       this.particles.push({
-        x: x + (Math.random() - 0.5) * (geom ? geom.width * 0.6 : 16),
-        y: y - 6,
-        vx: spread,
-        vy: speedY,
-        size: 3 + Math.random() * 5.5,
-        alpha: 0.95,
-        life: 0.85 + Math.random() * 0.75,
-        maxLife: 1.6,
-        color: info.color.hex,
-        glyph: i === 0 || i === 3 ? glyphs[Math.floor(Math.random() * glyphs.length)] : null,
-        gravity: -18, // Gently float upward like fireflies!
+        x: x + (Math.random() - 0.5) * (geom ? geom.width * 0.5 : 14),
+        y: y - 5,
+        vx: (Math.random() - 0.5) * 42,
+        vy: -(48 + Math.random() * 92),
+        size: 1.8 + Math.random() * 3.4,
+        alpha: 0.85,
+        life: 0.8 + Math.random() * 0.7,
+        maxLife: 1.5,
+        color: col,
+        gravity: -10,
         wobblePhase: Math.random() * Math.PI * 2,
       });
     }
@@ -247,28 +316,49 @@ export class StageCanvas {
   }
 
   _update(dt, t) {
-    // Decay aurora energy
-    this.auroraEnergy = Math.max(0, this.auroraEnergy - dt * 0.55);
+    this.lampEnergy = Math.max(0, this.lampEnergy - dt * 0.45);
 
-    // Continuous shimmer from held notes
-    if (this.activeNotes.size > 0 && Math.random() < dt * 18) {
+    // Drift background motes lazily
+    for (const m of this.motes) {
+      m.x += m.driftX * dt;
+      m.y += m.driftY * dt;
+      if (m.y < -0.04) {
+        m.y = 1.02;
+        m.x = Math.random();
+      }
+      if (m.x < -0.02) m.x = 1.02;
+      if (m.x > 1.02) m.x = -0.02;
+    }
+
+    // Soft diagonal window rain streaks
+    const rainSpeedMult = this.vinylActive ? 1.25 : 0.75;
+    for (const r of this.raindrops) {
+      r.y += r.speed * rainSpeedMult * dt;
+      r.x -= r.speed * 0.14 * rainSpeedMult * dt;
+      if (r.y > 1.08) {
+        r.y = -0.08;
+        r.x = Math.random() * 1.12;
+      }
+    }
+
+    // Subtle shimmer while holding notes
+    if (this.activeNotes.size > 0 && Math.random() < dt * 11) {
       const arr = [...this.activeNotes.values()];
       const pick = arr[Math.floor(Math.random() * arr.length)];
       const stageRect = this.canvas.getBoundingClientRect();
       const geom = this.keyboard.getKeyGeometry(pick.midi, stageRect);
       if (geom) {
         this.particles.push({
-          x: geom.centerX + (Math.random() - 0.5) * geom.width * 0.5,
-          y: this.height - 10,
-          vx: (Math.random() - 0.5) * 35,
-          vy: -(65 + Math.random() * 85),
-          size: 2.2 + Math.random() * 3.5,
-          alpha: 0.8,
-          life: 0.75 + Math.random() * 0.45,
-          maxLife: 1.2,
-          color: pick.info.color.hex,
-          glyph: null,
-          gravity: -12,
+          x: geom.centerX + (Math.random() - 0.5) * geom.width * 0.4,
+          y: this.height - 8,
+          vx: (Math.random() - 0.5) * 22,
+          vy: -(42 + Math.random() * 58),
+          size: 1.6 + Math.random() * 2.4,
+          alpha: 0.65,
+          life: 0.7 + Math.random() * 0.45,
+          maxLife: 1.15,
+          color: this._noteAccentColor(pick.info),
+          gravity: -8,
           wobblePhase: Math.random() * Math.PI * 2,
         });
       }
@@ -283,7 +373,7 @@ export class StageCanvas {
         continue;
       }
       p.vy += (p.gravity ?? 0) * dt;
-      p.x += p.vx * dt + (p.wobblePhase != null ? Math.sin(t * 4.5 + p.wobblePhase) * 18 * dt : 0);
+      p.x += p.vx * dt + (p.wobblePhase != null ? Math.sin(t * 3.2 + p.wobblePhase) * 12 * dt : 0);
       p.y += p.vy * dt;
       p.alpha = Math.max(0, Math.min(1, p.life / (p.maxLife * 0.65)));
     }
@@ -291,11 +381,17 @@ export class StageCanvas {
     // Update ripples
     for (let i = this.ripples.length - 1; i >= 0; i--) {
       const r = this.ripples[i];
-      r.r += 110 * dt;
-      r.alpha -= 1.25 * dt;
-      if (r.alpha <= 0 || r.r >= r.maxR) {
-        this.ripples.splice(i, 1);
-      }
+      r.r += 85 * dt;
+      r.alpha -= 1.05 * dt;
+      if (r.alpha <= 0 || r.r >= r.maxR) this.ripples.splice(i, 1);
+    }
+
+    // Update constellations
+    for (let i = this.constellations.length - 1; i >= 0; i--) {
+      const c = this.constellations[i];
+      c.life -= dt;
+      for (const pt of c.points) pt.y -= 14 * dt;
+      if (c.life <= 0) this.constellations.splice(i, 1);
     }
 
     // Update floating text
@@ -303,46 +399,23 @@ export class StageCanvas {
       const ft = this.floatingTexts[i];
       ft.life -= dt;
       ft.y += ft.vy * dt;
-      ft.alpha = Math.max(0, Math.min(1, ft.life / 0.5));
+      ft.alpha = Math.max(0, Math.min(1, ft.life / 0.6));
       if (ft.life <= 0) this.floatingTexts.splice(i, 1);
     }
 
-    // Update touch-friendly floating note pills
+    // Update note pills
     for (let i = this.notePills.length - 1; i >= 0; i--) {
       const np = this.notePills[i];
       np.life -= dt;
       np.y += np.vy * dt;
-      np.vy *= Math.pow(0.28, dt); // Gentle ease-out float
+      np.vy *= Math.pow(0.28, dt);
       if (np.life <= 0) this.notePills.splice(i, 1);
     }
 
-    // Update Pip the Owl physics
-    this.owl.hop += this.owl.hopVel * dt;
-    this.owl.hopVel += 640 * dt;
-    if (this.owl.hop > 0) {
-      this.owl.hop = 0;
-      this.owl.hopVel = 0;
-    }
-    this.owl.wingFlap = Math.max(0, this.owl.wingFlap - dt * 2.4);
-
-    this.owl.blinkTimer -= dt;
-    if (this.owl.blinkTimer <= 0) {
-      if (this.owl.blinking) {
-        this.owl.blinking = false;
-        this.owl.blinkTimer = 2.6 + Math.random() * 3.0;
-      } else {
-        this.owl.blinking = true;
-        this.owl.blinkTimer = 0.14;
-      }
-    }
-
-    if (this.owl.moodTimer > 0) {
-      this.owl.moodTimer -= dt;
-      if (this.owl.moodTimer <= 0) this.owl.mood = 'happy';
-    }
-    if (this.owl.speechTimer > 0) {
-      this.owl.speechTimer -= dt;
-      if (this.owl.speechTimer <= 0) this.owl.speech = '';
+    // Update marginalia timer
+    if (this.marginalia.timer > 0) {
+      this.marginalia.timer -= dt;
+      if (this.marginalia.timer <= 0) this.marginalia.text = '';
     }
   }
 
@@ -354,81 +427,93 @@ export class StageCanvas {
     const w = this.width;
     const h = this.height;
 
-    // 1. Enchanted twilight sky gradient
+    // 1. Nocturnal espresso-indigo gradient
     const sky = ctx.createLinearGradient(0, 0, 0, h);
-    sky.addColorStop(0, '#120f26');
-    sky.addColorStop(0.55, '#1b173a');
-    sky.addColorStop(1, '#261e4b');
+    sky.addColorStop(0, '#0f111a');
+    sky.addColorStop(0.55, '#171926');
+    sky.addColorStop(1, '#211c26');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, w, h);
 
-    // 2. Soft drifting aurora ribbons
-    this._drawAurora(ctx, w, h, t);
+    // 2. Warm tungsten café-lamp radial glow (breathes softly with playing)
+    const lampR = Math.max(w, h) * 0.72;
+    const lampGrad = ctx.createRadialGradient(
+      w * 0.82,
+      h * 0.14,
+      10,
+      w * 0.78,
+      h * 0.24,
+      lampR
+    );
+    const energy = 0.08 + this.lampEnergy * 0.08;
+    lampGrad.addColorStop(0, `rgba(242, 184, 102, ${energy + 0.07})`);
+    lampGrad.addColorStop(0.45, `rgba(218, 148, 86, ${energy * 0.45})`);
+    lampGrad.addColorStop(1, 'rgba(15, 17, 26, 0)');
+    ctx.fillStyle = lampGrad;
+    ctx.fillRect(0, 0, w, h);
 
-    // 3. Twinkling background stars
-    for (const s of this.stars) {
-      const twinkle = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * s.speed + s.phase));
-      ctx.globalAlpha = twinkle * 0.8;
-      ctx.fillStyle = s.tint;
+    // 3. Subtle cool dusk glow on the left (window moonlight contrast)
+    const moonGrad = ctx.createRadialGradient(w * 0.16, h * 0.35, 8, w * 0.16, h * 0.35, lampR * 0.65);
+    moonGrad.addColorStop(0, 'rgba(118, 165, 214, 0.09)');
+    moonGrad.addColorStop(1, 'rgba(15, 17, 26, 0)');
+    ctx.fillStyle = moonGrad;
+    ctx.fillRect(0, 0, w, h);
+
+    // 4. Subtle rainy-window streaks (slightly clearer when Vinyl ambience is on)
+    const rainAlphaMult = this.vinylActive ? 1.85 : 0.65;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(215, 224, 244, 0.5)';
+    ctx.lineWidth = 0.85;
+    for (const r of this.raindrops) {
+      ctx.globalAlpha = r.alpha * rainAlphaMult;
+      const rx = r.x * w;
+      const ry = r.y * h;
       ctx.beginPath();
-      ctx.arc(s.x * w, s.y * h, s.r, 0, Math.PI * 2);
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(rx - r.len * 0.15, ry + r.len);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 5. Drifting warm dust motes / bokeh
+    for (const m of this.motes) {
+      const shimmer = 0.28 + 0.62 * (0.5 + 0.5 * Math.sin(t * m.speed + m.phase));
+      ctx.globalAlpha = shimmer * 0.55;
+      ctx.fillStyle = m.tint;
+      ctx.beginPath();
+      ctx.arc(m.x * w, m.y * h, m.r, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
 
-    // 4. Active key vertical starlight beams
+    // 6. Active key vertical light columns (subtle warm glow)
     const stageRect = this.canvas.getBoundingClientRect();
     this._drawKeyBeams(ctx, h, stageRect);
 
-    // 5. Falling Starlight Notes Highway (if in Song mode)
+    // 7. Harmonic Chord Constellation Arcs
+    this._drawConstellations(ctx);
+
+    // 8. Song Studio Visuals (Scrolling Sheet Music OR Waterfall)
     if (this.fallingState && this.fallingState.song) {
-      this._drawFallingHighway(ctx, w, h, stageRect, t);
+      if (this.songView === 'waterfall') {
+        this._drawWaterfall(ctx, w, h, stageRect, t);
+      } else {
+        this._drawScrollingSheet(ctx, w, h, stageRect, t);
+      }
+    } else if (this.showStaff && h >= 105) {
+      // 9. Real-Time Grand Staff (Free Play, Scales & Chords, Sight & Ear)
+      this._drawLiveGrandStaff(ctx, w, h, stageRect, t);
     }
 
-    // 6. Real-Time Musical Staff (tucked away during Falling Notes so left-hand note lanes stay 100% unobstructed)
-    const canShowStaff = this.showStaff && (h >= 105) && !(this.fallingState && this.fallingState.song);
-    if (canShowStaff) {
-      this._drawMusicalStaff(ctx, w, h, t);
-    }
-
-    // 7. Pip the Musical Owl mascot
-    if (h >= 84) {
-      this._drawPipOwl(ctx, w, h, t);
-    }
-
-    // 8. Ripples, Fireflies & Floating Touch Note Pills
+    // 10. Ripples, Motes & Touch Note Pills
     for (const r of this.ripples) {
       ctx.save();
-      ctx.strokeStyle = r.color;
       ctx.globalAlpha = Math.max(0, r.alpha);
-      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = r.color;
+      ctx.lineWidth = 1.6;
       ctx.beginPath();
-      ctx.ellipse(r.x, r.y, r.r, r.r * 0.42, 0, 0, Math.PI * 2);
+      ctx.arc(r.x, r.y, r.r, Math.PI, Math.PI * 2);
       ctx.stroke();
-      ctx.restore();
-    }
-
-    for (const np of this.notePills) {
-      const alpha = Math.max(0, Math.min(1, np.life / (np.maxLife * 0.55)));
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.font = '700 12px "Fredoka", "Quicksand", system-ui, sans-serif';
-      const tw = ctx.measureText(np.label).width;
-      const pw = Math.max(32, tw + 14);
-      const ph = 22;
-      ctx.fillStyle = 'rgba(20, 16, 44, 0.84)';
-      ctx.strokeStyle = np.color;
-      ctx.lineWidth = 1.5;
-      ctx.shadowColor = np.color;
-      ctx.shadowBlur = 10;
-      this._roundRect(ctx, np.x - pw / 2, np.y - ph / 2, pw, ph, 11);
-      ctx.fill();
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#fffdf7';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(np.label, np.x, np.y + 0.5);
       ctx.restore();
     }
 
@@ -437,73 +522,54 @@ export class StageCanvas {
       ctx.globalAlpha = p.alpha;
       ctx.fillStyle = p.color;
       ctx.shadowColor = p.color;
-      ctx.shadowBlur = 10;
-      if (p.glyph) {
-        ctx.font = `700 ${Math.round(p.size * 2.4)}px "Quicksand", system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(p.glyph, p.x, p.y);
-      } else {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 0.55, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
     }
 
-    // 9. Floating celebration text
+    for (const np of this.notePills) {
+      const alpha = Math.max(0, Math.min(1, np.life / (np.maxLife * 0.45)));
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = '600 11px "JetBrains Mono", ui-monospace, monospace';
+      const tw = ctx.measureText(np.label).width;
+      const pw = tw + 14;
+      const ph = 20;
+      ctx.fillStyle = 'rgba(18, 19, 30, 0.86)';
+      ctx.strokeStyle = np.color;
+      ctx.lineWidth = 1.2;
+      this._roundRect(ctx, np.x - pw / 2, np.y - ph / 2, pw, ph, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#f5ebd6';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(np.label, np.x, np.y + 0.5);
+      ctx.restore();
+    }
+
+    // 11. Floating milestone captions
     for (const ft of this.floatingTexts) {
       ctx.save();
       ctx.globalAlpha = ft.alpha;
-      ctx.font = '700 18px "Fredoka", "Quicksand", system-ui, sans-serif';
-      ctx.textAlign = 'center';
+      ctx.font = '600 18px "Fraunces", Georgia, serif';
       ctx.fillStyle = ft.color;
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-      ctx.shadowBlur = 8;
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = 10;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
       ctx.fillText(ft.text, ft.x, ft.y);
       ctx.restore();
     }
 
-    // 10. Subtle Sustain Stardust Glow Line along the bottom edge
-    if (this.sustainActive) {
-      const grad = ctx.createLinearGradient(0, h - 18, 0, h);
-      grad.addColorStop(0, 'rgba(255, 224, 130, 0)');
-      grad.addColorStop(1, 'rgba(255, 224, 130, 0.32)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, h - 18, w, 18);
+    // 12. Subtle Marginalia Whisper (editorial caption, bottom-right of stage)
+    if (this.marginalia.text && h >= 90) {
+      this._drawMarginalia(ctx, w, h);
     }
 
-    ctx.restore();
-  }
-
-  _drawAurora(ctx, w, h, t) {
-    ctx.save();
-    const boost = 0.08 + this.auroraEnergy * 0.14;
-
-    const drawRibbon = (yBase, amp, freq, speed, colorA, colorB) => {
-      const grad = ctx.createLinearGradient(0, yBase - 60, w, yBase + 60);
-      grad.addColorStop(0, colorA);
-      grad.addColorStop(0.5, colorB);
-      grad.addColorStop(1, colorA);
-
-      ctx.fillStyle = grad;
-      ctx.globalAlpha = boost;
-      ctx.beginPath();
-      ctx.moveTo(0, h);
-      for (let x = 0; x <= w; x += 28) {
-        const y =
-          yBase +
-          Math.sin(x * freq + t * speed) * amp +
-          Math.cos(x * freq * 0.5 - t * speed * 0.7) * (amp * 0.6);
-        ctx.lineTo(x, y);
-      }
-      ctx.lineTo(w, h);
-      ctx.closePath();
-      ctx.fill();
-    };
-
-    drawRibbon(h * 0.42, 22, 0.0045, 0.45, 'rgba(139, 92, 246, 0.45)', 'rgba(94, 234, 212, 0.45)');
-    drawRibbon(h * 0.58, 16, 0.006, -0.35, 'rgba(244, 114, 182, 0.35)', 'rgba(96, 165, 250, 0.42)');
     ctx.restore();
   }
 
@@ -511,63 +577,814 @@ export class StageCanvas {
     for (const entry of this.activeNotes.values()) {
       const geom = this.keyboard.getKeyGeometry(entry.midi, stageRect);
       if (!geom) continue;
-      const beamW = Math.max(12, geom.width * 0.85);
-      const grad = ctx.createLinearGradient(0, h, 0, h * 0.12);
-      grad.addColorStop(0, entry.info.color.glow);
-      grad.addColorStop(0.45, entry.info.color.hex + '44');
+      const beamW = Math.max(10, geom.width * 0.78);
+      const col = this._noteAccentColor(entry.info);
+      const glow = this._noteGlowColor(entry.info);
+      const grad = ctx.createLinearGradient(0, h, 0, h * 0.22);
+      grad.addColorStop(0, glow);
+      grad.addColorStop(0.45, col + '28');
       grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
       ctx.fillStyle = grad;
-      ctx.fillRect(geom.centerX - beamW / 2, h * 0.12, beamW, h * 0.88);
+      ctx.fillRect(geom.centerX - beamW / 2, h * 0.22, beamW, h * 0.78);
     }
   }
 
-  // --------------------------------------------------------------------------
-  // Falling Starlight Notes Highway (Guided Song Mode)
-  // --------------------------------------------------------------------------
-  _drawFallingHighway(ctx, w, h, stageRect, t) {
-    const { song, currentBeat, waitIndex, lookaheadBeats = 4.2, hitEvents } = this.fallingState;
-    const hitLineY = h - 14;
+  _drawConstellations(ctx) {
+    for (const c of this.constellations) {
+      const alpha = Math.max(0, (c.life / c.maxLife) * 0.42);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = c.color;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      for (let i = 0; i < c.points.length; i++) {
+        const pt = c.points[i];
+        if (i === 0) {
+          ctx.moveTo(pt.x, pt.y);
+        } else {
+          const prev = c.points[i - 1];
+          const midX = (prev.x + pt.x) / 2;
+          const midY = Math.min(prev.y, pt.y) - 16;
+          ctx.quadraticCurveTo(midX, midY, pt.x, pt.y);
+        }
+      }
+      ctx.stroke();
 
-    // Dynamically start right below the floating mode ribbon so notes never collide with controls
+      for (const pt of c.points) {
+        ctx.fillStyle = '#f5ebd6';
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  _drawMarginalia(ctx, w, h) {
+    const fade = Math.min(1, this.marginalia.timer / 0.45);
+    const text = this.marginalia.text;
+    ctx.save();
+    ctx.globalAlpha = fade * 0.94;
+
+    const compact = w < 560;
+    ctx.font = `${compact ? '500 11px' : '500 12px'} "Plus Jakarta Sans", system-ui, sans-serif`;
+    const maxW = Math.min(w - 28, compact ? 280 : 420);
+    let shown = text;
+    if (ctx.measureText(shown).width > maxW - 30) {
+      while (shown.length > 10 && ctx.measureText(shown + '…').width > maxW - 30) {
+        shown = shown.slice(0, -1);
+      }
+      shown += '…';
+    }
+
+    const tw = ctx.measureText(shown).width;
+    const pillW = tw + 30;
+    const pillH = compact ? 24 : 26;
+    const x = w - pillW - 14;
+    const y = h - pillH - 10;
+
+    const accentMap = {
+      warm: '#e8b86d',
+      sage: '#7cc4a9',
+      amber: '#e5a864',
+      rose: '#e07a7a',
+    };
+    const accent = accentMap[this.marginalia.tone] || '#e8b86d';
+
+    ctx.fillStyle = 'rgba(18, 20, 31, 0.80)';
+    ctx.strokeStyle = 'rgba(242, 194, 120, 0.24)';
+    ctx.lineWidth = 1;
+    this._roundRect(ctx, x, y, pillW, pillH, 999);
+    ctx.fill();
+    ctx.stroke();
+
+    // Small diamond accent
+    ctx.fillStyle = accent;
+    ctx.font = '600 10px serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('◈', x + 10, y + pillH / 2 + 0.5);
+
+    ctx.fillStyle = '#f5ebd6';
+    ctx.font = `${compact ? '500 11px' : '500 12px'} "Plus Jakarta Sans", system-ui, sans-serif`;
+    ctx.fillText(shown, x + 22, y + pillH / 2 + 0.5);
+    ctx.restore();
+  }
+
+  _measureRibbonBottom(stageRect, fallback = 54) {
     const ribbonEl = document.getElementById('stageRibbon');
-    let topY = 58;
     if (ribbonEl && stageRect) {
       const rRect = ribbonEl.getBoundingClientRect();
-      topY = Math.max(52, Math.min(h * 0.42, rRect.bottom - stageRect.top + 8));
+      return Math.max(46, rRect.bottom - stageRect.top + 8);
     }
+    return fallback;
+  }
+
+  // --------------------------------------------------------------------------
+  // Shared Notation Drawing Primitives (Clefs, Key Sigs, Rhythmic Noteheads)
+  // --------------------------------------------------------------------------
+  _drawKeySignature(ctx, xStart, trebleBottomY, bassBottomY, lineGap, keySigCount, showBass = true) {
+    if (!keySigCount) return 0;
+    const isSharp = keySigCount > 0;
+    const count = Math.min(7, Math.abs(keySigCount));
+    const glyph = isSharp ? '♯' : '♭';
+    const stepH = lineGap / 2;
+    const spacing = Math.max(7, lineGap * 0.92);
+
+    const tSteps = isSharp ? SHARP_TREBLE_STEPS : FLAT_TREBLE_STEPS;
+    const bSteps = isSharp ? SHARP_BASS_STEPS : FLAT_BASS_STEPS;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(245, 235, 214, 0.78)';
+    ctx.font = `600 ${Math.round(lineGap * 1.65)}px Georgia, serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (let i = 0; i < count; i++) {
+      const x = xStart + i * spacing;
+      const ty = trebleBottomY - (tSteps[i] - 2) * stepH;
+      ctx.fillText(glyph, x, ty + 0.5);
+
+      if (showBass && bassBottomY != null) {
+        const by = bassBottomY - (bSteps[i] - (-10)) * stepH;
+        ctx.fillText(glyph, x, by + 0.5);
+      }
+    }
+    ctx.restore();
+    return count * spacing + 6;
+  }
+
+  _drawNoteOnStaff(ctx, midi, xPos, staffGeom, opts = {}) {
+    const {
+      trebleBottomY,
+      bassBottomY,
+      lineGap,
+      cardTop,
+      cardBottom,
+      hasBass,
+      keySigCount = 0,
+    } = staffGeom;
+
+    const info = midiToNoteInfo(midi, this.preferFlats);
+    const useBass = hasBass
+      ? (opts.clef ? opts.clef === 'bass' : midi < 60)
+      : Boolean(opts.forceSingleBass);
+
+    const bottomLineStep = useBass ? -10 : 2;
+    const bottomLineY = useBass ? bassBottomY : trebleBottomY;
+    const stepH = lineGap / 2;
+    const stepDiff = info.staffStep - bottomLineStep;
+    const rawY = bottomLineY - stepDiff * stepH;
+    const y = Math.max(cardTop + 10, Math.min(cardBottom - 10, rawY));
+
+    // Ledger lines
+    ctx.save();
+    ctx.strokeStyle = 'rgba(245, 235, 214, 0.62)';
+    ctx.lineWidth = 1.15;
+    const ledgerW = Math.max(9, lineGap * 1.15);
+    if (stepDiff <= -2) {
+      for (let s = -2; s >= stepDiff; s -= 2) {
+        const ly = bottomLineY - s * stepH;
+        if (ly <= cardBottom - 6 && ly >= cardTop + 6) {
+          ctx.beginPath();
+          ctx.moveTo(xPos - ledgerW, ly);
+          ctx.lineTo(xPos + ledgerW, ly);
+          ctx.stroke();
+        }
+      }
+    } else if (stepDiff >= 10) {
+      for (let s = 10; s <= stepDiff; s += 2) {
+        const ly = bottomLineY - s * stepH;
+        if (ly >= cardTop + 6 && ly <= cardBottom - 6) {
+          ctx.beginPath();
+          ctx.moveTo(xPos - ledgerW, ly);
+          ctx.lineTo(xPos + ledgerW, ly);
+          ctx.stroke();
+        }
+      }
+    }
+
+    const dur = opts.duration ?? 1;
+    const isWhole = dur >= 3.5;
+    const isHollow = dur >= 1.9;
+    const isDotted = Math.abs(dur - 1.5) < 0.08 || Math.abs(dur - 3.0) < 0.08;
+    const isEighth = dur <= 0.6;
+
+    const color = opts.color || this._noteAccentColor(info);
+    const rx = Math.max(4.4, lineGap * 0.62);
+    const ry = Math.max(3.2, lineGap * 0.44);
+
+    // Notehead
+    ctx.save();
+    ctx.translate(xPos, y);
+    ctx.rotate(-0.26);
+    if (opts.glow) {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = opts.glow;
+    }
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+    if (isHollow) {
+      ctx.fillStyle = 'rgba(18, 20, 31, 0.9)';
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.0;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = color;
+      ctx.fill();
+      if (opts.outline) {
+        ctx.strokeStyle = '#fff9ee';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+
+    // Rhythm augmentation dot
+    if (isDotted) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      const dotY = stepDiff % 2 === 0 ? y - stepH * 0.45 : y;
+      ctx.arc(xPos + rx + 4.5, dotY, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Stem & eighth flag (unless whole note or caller suppresses stem for chords)
+    if (!isWhole && !opts.noStem) {
+      const stemUp = opts.stemDir ? opts.stemDir === 'up' : stepDiff < 4;
+      const stemLen = Math.max(18, lineGap * 2.9);
+      const sx = stemUp ? xPos + rx - 0.8 : xPos - rx + 0.8;
+      const syEnd = stemUp
+        ? Math.max(cardTop + 6, y - stemLen)
+        : Math.min(cardBottom - 6, y + stemLen);
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(sx, y);
+      ctx.lineTo(sx, syEnd);
+      ctx.stroke();
+
+      if (isEighth) {
+        ctx.beginPath();
+        ctx.moveTo(sx, syEnd);
+        if (stemUp) {
+          ctx.quadraticCurveTo(sx + 7, syEnd + 5, sx + 5, syEnd + 13);
+        } else {
+          ctx.quadraticCurveTo(sx + 7, syEnd - 5, sx + 5, syEnd - 13);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // Accidental (respecting active key signature!)
+    const acc = getDisplayAccidental(info, keySigCount);
+    if (acc) {
+      ctx.fillStyle = '#f5ebd6';
+      ctx.font = `600 ${Math.round(lineGap * 1.6)}px Georgia, serif`;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(acc, xPos - rx - 3, y + 0.5);
+    }
+
+    // Fingering number (engraved cleanly on the opposite side of the stem!)
+    if (opts.finger) {
+      const stemUp = opts.stemDir ? opts.stemDir === 'up' : stepDiff < 4;
+      ctx.fillStyle = opts.isCurrent ? '#f5d494' : 'rgba(245, 235, 214, 0.72)';
+      ctx.font = `600 ${Math.max(9, Math.round(lineGap * 1.02))}px "JetBrains Mono", monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const fy = stemUp
+        ? Math.min(cardBottom - 7, y + ry + 9)
+        : Math.max(cardTop + 9, y - ry - 10);
+      ctx.fillText(String(opts.finger), xPos, fy);
+    }
+
+    // Optional pitch name caption
+    if (opts.showLabel) {
+      ctx.fillStyle = 'rgba(245, 235, 214, 0.84)';
+      ctx.font = '600 9.5px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(info.fullName, xPos, cardBottom - 14);
+    }
+
+    ctx.restore();
+    return { y, useBass, stepDiff };
+  }
+
+  // --------------------------------------------------------------------------
+  // 1. REAL-TIME GRAND STAFF (Free Play, Scales & Chords, Sight & Ear)
+  // --------------------------------------------------------------------------
+  _drawLiveGrandStaff(ctx, w, h, stageRect, t) {
+    const ribbonBottom = this._measureRibbonBottom(stageRect, 52);
+    const availH = h - ribbonBottom - 16;
+    if (availH < 72) return;
+
+    const useGrand = availH >= 148;
+    const compact = w < 580 || availH < 185;
+    const isPromptActive = this.promptNotes.length > 0 || this.transcribedNotes.length > 0;
+
+    const cardW = Math.min(w - 28, isPromptActive ? 500 : compact ? 340 : 450);
+    const lineGap = useGrand ? (availH >= 205 ? 9.5 : 7.5) : (compact ? 8.5 : 10.5);
+    const staffGap = useGrand ? lineGap * 3.1 : 0;
+    const totalStaffH = useGrand ? lineGap * 8 + staffGap : lineGap * 4;
+    const cardH = Math.min(availH, Math.max(useGrand ? 142 : 84, totalStaffH + (useGrand ? 46 : 40)));
+
+    const cardX = (w - cardW) / 2;
+    const cardY = ribbonBottom + Math.max(4, (availH - cardH) * 0.42);
+
+    ctx.save();
+    // Smoked midnight-parchment card with brass hairline
+    ctx.fillStyle = 'rgba(18, 19, 30, 0.72)';
+    ctx.strokeStyle = 'rgba(232, 184, 109, 0.24)';
+    ctx.lineWidth = 1.1;
+    this._roundRect(ctx, cardX, cardY, cardW, cardH, 16);
+    ctx.fill();
+    ctx.stroke();
+
+    const lineLeft = cardX + 20;
+    const lineRight = cardX + cardW - 18;
+    const trebleTopY = cardY + (cardH - totalStaffH) / 2 + 3;
+    const trebleBottomY = trebleTopY + lineGap * 4;
+    const bassTopY = useGrand ? trebleBottomY + staffGap : trebleTopY;
+    const bassBottomY = useGrand ? bassTopY + lineGap * 4 : trebleBottomY;
+
+    // Single-staff fallback clef decision if viewport is ultra-short
+    const activeMidis = [...this.activeNotes.keys()];
+    const promptMidis = this.promptNotes.map((p) => p.midi);
+    const allMidis = [...activeMidis, ...promptMidis];
+    const singleUseBass = !useGrand && (
+      this.promptNotes.some((p) => p.clef === 'bass') ||
+      (allMidis.length > 0 && Math.min(...allMidis) < 58 && !promptMidis.some((m) => m >= 60))
+    );
+
+    // Draw Staff Lines
+    ctx.strokeStyle = 'rgba(245, 235, 214, 0.30)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      const ty = trebleTopY + i * lineGap;
+      ctx.beginPath();
+      ctx.moveTo(lineLeft, ty);
+      ctx.lineTo(lineRight, ty);
+      ctx.stroke();
+
+      if (useGrand) {
+        const by = bassTopY + i * lineGap;
+        ctx.beginPath();
+        ctx.moveTo(lineLeft, by);
+        ctx.lineTo(lineRight, by);
+        ctx.stroke();
+      }
+    }
+
+    // Left Grand Staff connector barline + subtle brace
+    ctx.strokeStyle = 'rgba(232, 184, 109, 0.55)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(lineLeft, trebleTopY);
+    ctx.lineTo(lineLeft, useGrand ? bassBottomY : trebleBottomY);
+    ctx.stroke();
+
+    // Right double barline accent
+    ctx.strokeStyle = 'rgba(245, 235, 214, 0.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(lineRight, trebleTopY);
+    ctx.lineTo(lineRight, useGrand ? bassBottomY : trebleBottomY);
+    ctx.stroke();
+
+    // Clef Glyphs
+    ctx.fillStyle = 'rgba(232, 184, 109, 0.88)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    if (useGrand) {
+      ctx.font = `${Math.round(lineGap * 4.5)}px Georgia, serif`;
+      ctx.fillText('𝄞', lineLeft + 3, trebleTopY + lineGap * 2.15);
+      ctx.font = `${Math.round(lineGap * 3.4)}px Georgia, serif`;
+      ctx.fillText('𝄢', lineLeft + 4, bassTopY + lineGap * 1.65);
+    } else if (singleUseBass) {
+      ctx.font = `${Math.round(lineGap * 3.4)}px Georgia, serif`;
+      ctx.fillText('𝄢', lineLeft + 4, trebleTopY + lineGap * 1.65);
+    } else {
+      ctx.font = `${Math.round(lineGap * 4.5)}px Georgia, serif`;
+      ctx.fillText('𝄞', lineLeft + 3, trebleTopY + lineGap * 2.15);
+    }
+
+    // Key Signature
+    const keySigStart = lineLeft + Math.round(lineGap * 3.9);
+    const keySigW = this._drawKeySignature(
+      ctx,
+      keySigStart,
+      trebleBottomY,
+      useGrand ? bassBottomY : null,
+      lineGap,
+      this.keySigCount,
+      useGrand
+    );
+
+    // Subtle corner title
+    ctx.fillStyle = 'rgba(232, 184, 109, 0.56)';
+    ctx.font = '600 9px "JetBrains Mono", monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    const staffTitle = useGrand ? 'GRAND STAFF' : singleUseBass ? 'BASS STAFF' : 'TREBLE STAFF';
+    ctx.fillText(staffTitle, cardX + 16, cardY + 7);
+
+    const staffGeom = {
+      trebleBottomY,
+      bassBottomY,
+      lineGap,
+      cardTop: cardY + 6,
+      cardBottom: cardY + cardH - 6,
+      hasBass: useGrand,
+      keySigCount: this.keySigCount,
+    };
+
+    const noteZoneStart = keySigStart + keySigW + 14;
+    const noteZoneWidth = Math.max(80, lineRight - noteZoneStart - 16);
+
+    // Case A: Sight-Reading / Chord / Interval Prompts
+    if (this.promptNotes.length > 0) {
+      const isChordStack = this.promptNotes.every((p) => p.stacked);
+      this.promptNotes.forEach((pn, idx) => {
+        const x = isChordStack
+          ? noteZoneStart + noteZoneWidth * 0.46
+          : noteZoneStart + ((idx + 1) / (this.promptNotes.length + 1)) * noteZoneWidth;
+
+        const col =
+          pn.state === 'correct'
+            ? '#7cc4a9'
+            : pn.state === 'wrong'
+            ? '#e07a7a'
+            : pn.state === 'anchor'
+            ? '#76a5d6'
+            : '#f2c278';
+
+        this._drawNoteOnStaff(ctx, pn.midi, x, staffGeom, {
+          color: col,
+          clef: pn.clef,
+          forceSingleBass: singleUseBass,
+          glow: pn.state === 'waiting' ? 12 + Math.sin(t * 5) * 4 : 8,
+          outline: pn.state === 'waiting',
+          showLabel: pn.state === 'correct' || pn.state === 'anchor',
+          noStem: isChordStack && idx > 0,
+        });
+      });
+
+      // Also faintly show live notes being pressed if user is building a chord
+      if (isChordStack && activeMidis.length > 0) {
+        for (const m of activeMidis) {
+          if (!this.promptNotes.some((p) => p.midi === m)) {
+            this._drawNoteOnStaff(ctx, m, noteZoneStart + noteZoneWidth * 0.72, staffGeom, {
+              color: 'rgba(245, 235, 214, 0.45)',
+              forceSingleBass: singleUseBass,
+            });
+          }
+        }
+      }
+    } else if (this.transcribedNotes.length > 0) {
+      // Case B: Ear Training Melodic Echo transcription on the Grand Staff
+      this.transcribedNotes.forEach((tn, idx) => {
+        const x = noteZoneStart + ((idx + 1) / (Math.max(4, this.transcribedNotes.length) + 1)) * noteZoneWidth;
+        this._drawNoteOnStaff(ctx, tn.midi, x, staffGeom, {
+          color: '#7cc4a9',
+          forceSingleBass: singleUseBass,
+          showLabel: true,
+        });
+      });
+    } else if (activeMidis.length > 0) {
+      // Case C: Live played notes & chords
+      const sorted = activeMidis.slice().sort((a, b) => a - b);
+      const center = noteZoneStart + noteZoneWidth * 0.46;
+
+      // Stack chord notes cleanly vertically (nudge seconds slightly right like real engraving!)
+      let prevStep = null;
+      sorted.forEach((midi, idx) => {
+        const info = midiToNoteInfo(midi, this.preferFlats);
+        const isSecondCluster = prevStep !== null && Math.abs(info.staffStep - prevStep) <= 1;
+        const xOffset = isSecondCluster ? lineGap * 1.15 : 0;
+        prevStep = info.staffStep;
+
+        this._drawNoteOnStaff(ctx, midi, center + xOffset, staffGeom, {
+          forceSingleBass: singleUseBass,
+          glow: 9,
+          showLabel: sorted.length <= 2,
+          noStem: sorted.length > 1 && idx > 0 && idx < sorted.length - 1,
+        });
+      });
+    } else {
+      // Quiet studio placeholder
+      ctx.fillStyle = 'rgba(245, 235, 214, 0.30)';
+      ctx.font = 'italic 500 12px "Fraunces", Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const midY = useGrand ? trebleBottomY + staffGap / 2 : trebleTopY + lineGap * 2;
+      ctx.fillText('Strike any note or chord to see it engraved here', noteZoneStart + noteZoneWidth * 0.48, midY);
+    }
+
+    ctx.restore();
+  }
+
+  // --------------------------------------------------------------------------
+  // 2. SCROLLING GRAND STAFF SHEET MUSIC (Notation-First Song Studio!)
+  // --------------------------------------------------------------------------
+  _drawScrollingSheet(ctx, w, h, stageRect, t) {
+    const { song, currentBeat, waitIndex, hitEvents } = this.fallingState;
+    const ribbonBottom = this._measureRibbonBottom(stageRect, 56);
+    const availH = h - ribbonBottom - 16;
+    if (availH < 82) {
+      // Fallback to waterfall if stage is extremely short
+      this._drawWaterfall(ctx, w, h, stageRect, t);
+      return;
+    }
+
+    const songNeedsBass = song.minMidi < 59;
+    const useGrand = availH >= 152 && (songNeedsBass || availH >= 185);
+    const lineGap = useGrand ? (availH >= 200 ? 9.2 : 7.4) : Math.min(11, Math.max(8, availH * 0.085));
+    const staffGap = useGrand ? lineGap * 3.1 : 0;
+    const totalStaffH = useGrand ? lineGap * 8 + staffGap : lineGap * 4;
+
+    const cardW = Math.min(w - 24, 920);
+    const cardH = Math.min(availH, Math.max(useGrand ? 148 : 96, totalStaffH + (useGrand ? 58 : 48)));
+    const cardX = (w - cardW) / 2;
+    const cardY = ribbonBottom + Math.max(4, (availH - cardH) * 0.42);
+
+    ctx.save();
+    // Warm editorial sheet card
+    ctx.fillStyle = 'rgba(18, 19, 30, 0.78)';
+    ctx.strokeStyle = 'rgba(232, 184, 109, 0.28)';
+    ctx.lineWidth = 1.15;
+    this._roundRect(ctx, cardX, cardY, cardW, cardH, 16);
+    ctx.fill();
+    ctx.stroke();
+
+    const lineLeft = cardX + 18;
+    const lineRight = cardX + cardW - 18;
+    const trebleTopY = cardY + (cardH - totalStaffH) / 2 + 8;
+    const trebleBottomY = trebleTopY + lineGap * 4;
+    const bassTopY = useGrand ? trebleBottomY + staffGap : trebleTopY;
+    const bassBottomY = useGrand ? bassTopY + lineGap * 4 : trebleBottomY;
+
+    // Header label: Piece Title & Key
+    ctx.fillStyle = 'rgba(245, 235, 214, 0.62)';
+    ctx.font = '600 10px "JetBrains Mono", monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`${song.keyLabel.toUpperCase()}  •  ${song.timeSig}  •  ${song.bpm} BPM`, cardX + 18, cardY + 8);
+
+    // Draw Staff Lines
+    ctx.strokeStyle = 'rgba(245, 235, 214, 0.30)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      const ty = trebleTopY + i * lineGap;
+      ctx.beginPath();
+      ctx.moveTo(lineLeft, ty);
+      ctx.lineTo(lineRight, ty);
+      ctx.stroke();
+
+      if (useGrand) {
+        const by = bassTopY + i * lineGap;
+        ctx.beginPath();
+        ctx.moveTo(lineLeft, by);
+        ctx.lineTo(lineRight, by);
+        ctx.stroke();
+      }
+    }
+
+    // Left connector barline
+    ctx.strokeStyle = 'rgba(232, 184, 109, 0.6)';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(lineLeft, trebleTopY);
+    ctx.lineTo(lineLeft, useGrand ? bassBottomY : trebleBottomY);
+    ctx.stroke();
+
+    // Clefs
+    ctx.fillStyle = 'rgba(232, 184, 109, 0.9)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${Math.round(lineGap * 4.5)}px Georgia, serif`;
+    ctx.fillText('𝄞', lineLeft + 3, trebleTopY + lineGap * 2.15);
+    if (useGrand) {
+      ctx.font = `${Math.round(lineGap * 3.4)}px Georgia, serif`;
+      ctx.fillText('𝄢', lineLeft + 4, bassTopY + lineGap * 1.65);
+    }
+
+    // Key Signature
+    const keySigStart = lineLeft + Math.round(lineGap * 3.8);
+    const keySigW = this._drawKeySignature(
+      ctx,
+      keySigStart,
+      trebleBottomY,
+      useGrand ? bassBottomY : null,
+      lineGap,
+      song.keySigCount || 0,
+      useGrand
+    );
+
+    // Time Signature
+    const timeX = keySigStart + keySigW + 6;
+    const [beatsTop, beatsBot] = (song.timeSig || '4/4').split('/');
+    ctx.fillStyle = 'rgba(245, 235, 214, 0.8)';
+    ctx.font = `700 ${Math.round(lineGap * 2.1)}px "Fraunces", Georgia, serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(beatsTop || '4', timeX + 6, trebleTopY + lineGap * 1.05);
+    ctx.fillText(beatsBot || '4', timeX + 6, trebleTopY + lineGap * 3.05);
+    if (useGrand) {
+      ctx.fillText(beatsTop || '4', timeX + 6, bassTopY + lineGap * 1.05);
+      ctx.fillText(beatsBot || '4', timeX + 6, bassTopY + lineGap * 3.05);
+    }
+
+    // Scrolling playhead geometry
+    const scrollLeft = timeX + 22;
+    const scrollRight = lineRight - 6;
+    const playheadX = scrollLeft + Math.min(82, (scrollRight - scrollLeft) * 0.16);
+    const beatsPerBar = Number(beatsTop) || 4;
+    const pxPerBeat = Math.max(46, Math.min(78, (scrollRight - playheadX) / 6.5));
+
+    // Amber Playhead Beam
+    const phGrad = ctx.createLinearGradient(0, cardY + 22, 0, cardY + cardH - 8);
+    phGrad.addColorStop(0, 'rgba(232, 184, 109, 0.05)');
+    phGrad.addColorStop(0.5, 'rgba(232, 184, 109, 0.65)');
+    phGrad.addColorStop(1, 'rgba(232, 184, 109, 0.05)');
+    ctx.strokeStyle = phGrad;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(playheadX, trebleTopY - 12);
+    ctx.lineTo(playheadX, (useGrand ? bassBottomY : trebleBottomY) + 12);
+    ctx.stroke();
+
+    // Clip scrolling notes & barlines cleanly inside the music viewport
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(scrollLeft, cardY + 18, scrollRight - scrollLeft, cardH - 22);
+    ctx.clip();
+
+    // Draw measure barlines
+    const firstBar = Math.max(0, Math.floor((currentBeat - 3) / beatsPerBar));
+    const lastBar = Math.ceil((song.totalBeats + beatsPerBar) / beatsPerBar);
+    ctx.strokeStyle = 'rgba(245, 235, 214, 0.22)';
+    ctx.lineWidth = 1;
+    for (let bar = firstBar; bar <= lastBar; bar++) {
+      const barBeat = bar * beatsPerBar;
+      const bx = playheadX + (barBeat - currentBeat) * pxPerBeat;
+      if (bx < scrollLeft - 4 || bx > scrollRight + 4) continue;
+      ctx.beginPath();
+      ctx.moveTo(bx, trebleTopY);
+      ctx.lineTo(bx, useGrand ? bassBottomY : trebleBottomY);
+      ctx.stroke();
+    }
+
+    const staffGeom = {
+      trebleBottomY,
+      bassBottomY,
+      lineGap,
+      cardTop: cardY + 20,
+      cardBottom: cardY + cardH - 8,
+      hasBass: useGrand,
+      keySigCount: song.keySigCount || 0,
+    };
+
+    const showFingers = this.songGuidance !== 'pure';
+
+    // Draw events
+    song.events.forEach((ev, idx) => {
+      const deltaBeats = ev.beat - currentBeat;
+      const isCurrent = idx === waitIndex;
+      const clampedDelta = isCurrent ? Math.max(0, deltaBeats) : deltaBeats;
+      const x = playheadX + clampedDelta * pxPerBeat;
+
+      if (x < scrollLeft - 36 || x > scrollRight + 36) return;
+
+      const isHit = hitEvents && hitEvents.has(idx);
+      const isPast = !isHit && deltaBeats < -0.5;
+      const noteColor = isHit
+        ? '#7cc4a9'
+        : isCurrent
+        ? '#f2c278'
+        : isPast
+        ? 'rgba(224, 122, 122, 0.55)'
+        : '#f5ebd6';
+
+      // Jazz Chord Symbol above the treble staff
+      if (ev.chord) {
+        ctx.save();
+        ctx.fillStyle = isCurrent ? '#f2c278' : isHit ? 'rgba(124, 196, 169, 0.72)' : 'rgba(232, 184, 109, 0.78)';
+        ctx.font = '600 11px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(ev.chord, x, Math.max(cardY + 31, trebleTopY - 7));
+        ctx.restore();
+      }
+
+      // Draw each note in the event (single melody note or stacked jazz voicing)
+      const sortedPairs = ev.notes
+        .map((m, i) => ({ midi: m, finger: ev.fingers[i] }))
+        .sort((a, b) => a.midi - b.midi);
+
+      let prevStep = null;
+      const chordResults = [];
+      sortedPairs.forEach((pair) => {
+        const info = midiToNoteInfo(pair.midi, this.preferFlats);
+        const isSecond = prevStep !== null && Math.abs(info.staffStep - prevStep) <= 1;
+        prevStep = info.staffStep;
+        const nx = isSecond ? x + lineGap * 1.15 : x;
+
+        const res = this._drawNoteOnStaff(ctx, pair.midi, nx, staffGeom, {
+          color: noteColor,
+          duration: ev.duration,
+          glow: isCurrent ? 12 + Math.sin(t * 6) * 4 : 0,
+          outline: isCurrent,
+          isCurrent,
+          finger: showFingers && sortedPairs.length === 1 ? pair.finger : null,
+          noStem: sortedPairs.length > 1,
+        });
+        chordResults.push(res);
+      });
+
+      // Draw a single clean unified stem for stacked chords (if not whole notes)
+      if (sortedPairs.length > 1 && ev.duration < 3.5 && chordResults.length > 1) {
+        const ys = chordResults.map((r) => r.y);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+        const avgStep = chordResults.reduce((s, r) => s + r.stepDiff, 0) / chordResults.length;
+        const stemUp = avgStep < 4;
+        const rx = Math.max(4.4, lineGap * 0.62);
+        const sx = stemUp ? x + rx - 0.8 : x - rx + 0.8;
+        const stemLen = Math.max(18, lineGap * 2.6);
+
+        ctx.save();
+        ctx.strokeStyle = noteColor;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        if (stemUp) {
+          ctx.moveTo(sx, maxY);
+          ctx.lineTo(sx, Math.max(cardY + 22, minY - stemLen));
+        } else {
+          ctx.moveTo(sx, minY);
+          ctx.lineTo(sx, Math.min(cardY + cardH - 10, maxY + stemLen));
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // For chords in Guided/Assist mode, show compact fingering stack cleanly below/above
+      if (showFingers && sortedPairs.length > 1 && ev.fingers.length > 0) {
+        ctx.save();
+        ctx.fillStyle = isCurrent ? '#f5d494' : 'rgba(245, 235, 214, 0.62)';
+        ctx.font = '600 9px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(ev.fingers.join('·'), x, (useGrand ? bassBottomY : trebleBottomY) + 6);
+        ctx.restore();
+      }
+    });
+
+    ctx.restore(); // end clip
+    ctx.restore();
+  }
+
+  // --------------------------------------------------------------------------
+  // 3. OPTIONAL WATERFALL VIEW (Refined Nocturne Spatial Highway)
+  // --------------------------------------------------------------------------
+  _drawWaterfall(ctx, w, h, stageRect, t) {
+    const { song, currentBeat, waitIndex, lookaheadBeats = 4.2, hitEvents } = this.fallingState;
+    const hitLineY = h - 14;
+    const topY = Math.min(h * 0.42, this._measureRibbonBottom(stageRect, 58));
     const travelH = Math.max(64, hitLineY - topY);
     const pxPerBeat = travelH / lookaheadBeats;
 
-    // Glowing Starlight Hit-Line right above the piano keys
     ctx.save();
+    // Soft amber hit-line
     const lineGrad = ctx.createLinearGradient(0, 0, w, 0);
-    lineGrad.addColorStop(0, 'rgba(255, 230, 109, 0.1)');
-    lineGrad.addColorStop(0.5, 'rgba(255, 230, 109, 0.72)');
-    lineGrad.addColorStop(1, 'rgba(255, 230, 109, 0.1)');
+    lineGrad.addColorStop(0, 'rgba(232, 184, 109, 0.08)');
+    lineGrad.addColorStop(0.5, 'rgba(232, 184, 109, 0.65)');
+    lineGrad.addColorStop(1, 'rgba(232, 184, 109, 0.08)');
     ctx.strokeStyle = lineGrad;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, hitLineY);
     ctx.lineTo(w, hitLineY);
     ctx.stroke();
 
-    // Clip falling note capsules strictly below the floating ribbon
     ctx.beginPath();
     ctx.rect(0, topY, w, hitLineY - topY + 6);
     ctx.clip();
 
-    // Draw each visible upcoming / active note capsule
+    const showLabels = this.songGuidance !== 'pure';
+
     song.events.forEach((ev, idx) => {
       if (hitEvents && hitEvents.has(idx)) return;
-
       const deltaBeats = ev.beat - currentBeat;
-      // Skip notes far in past or far in future
       if (deltaBeats + ev.duration < -0.5 || deltaBeats > lookaheadBeats + 0.8) return;
 
       const isCurrentWait = waitIndex === idx;
       const clampedDelta = isCurrentWait ? Math.max(0, deltaBeats) : deltaBeats;
       const bottomY = hitLineY - clampedDelta * pxPerBeat;
-      const noteH = Math.max(24, Math.min(ev.duration * pxPerBeat - 4, travelH * 0.65));
+      const noteH = Math.max(22, Math.min(ev.duration * pxPerBeat - 4, travelH * 0.65));
       const capsuleTop = bottomY - noteH;
 
       ev.notes.forEach((midi, nIdx) => {
@@ -576,42 +1393,38 @@ export class StageCanvas {
 
         const info = midiToNoteInfo(midi, this.preferFlats);
         const finger = ev.fingers[nIdx];
-        const barW = Math.max(18, geom.width * (geom.isBlack ? 0.92 : 0.78));
+        const barW = Math.max(16, geom.width * (geom.isBlack ? 0.9 : 0.76));
         const x = geom.centerX - barW / 2;
+        const col = isCurrentWait ? '#f2c278' : this._noteAccentColor(info);
 
         ctx.save();
-        // Pulse glow on the active target note!
-        const pulse = isCurrentWait ? 0.5 + 0.5 * Math.sin(t * 7) : 0;
-        ctx.shadowColor = info.color.hex;
-        ctx.shadowBlur = isCurrentWait ? 18 + pulse * 10 : 8;
+        const pulse = isCurrentWait ? 0.5 + 0.5 * Math.sin(t * 6) : 0;
+        ctx.shadowColor = col;
+        ctx.shadowBlur = isCurrentWait ? 14 + pulse * 8 : 5;
 
-        // Capsule body
-        const radius = Math.min(10, barW / 2, noteH / 2);
+        const radius = Math.min(8, barW / 2, noteH / 2);
         const grad = ctx.createLinearGradient(x, capsuleTop, x, bottomY);
-        grad.addColorStop(0, info.color.hex + 'cc');
-        grad.addColorStop(1, info.color.hex);
+        grad.addColorStop(0, col + 'bb');
+        grad.addColorStop(1, col);
         ctx.fillStyle = grad;
 
         this._roundRect(ctx, x, capsuleTop, barW, noteH, radius);
         ctx.fill();
 
-        // Crisp white highlight border on active target
-        ctx.lineWidth = isCurrentWait ? 2.4 : 1.2;
-        ctx.strokeStyle = isCurrentWait ? '#ffffff' : 'rgba(255,255,255,0.45)';
+        ctx.lineWidth = isCurrentWait ? 2 : 1;
+        ctx.strokeStyle = isCurrentWait ? '#fff9ee' : 'rgba(255,248,235,0.35)';
         ctx.stroke();
 
-        // Note name / finger number inside capsule
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#141129';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const label = finger ? `${info.name}·${finger}` : info.name;
-        const fontSize = Math.min(12, Math.max(9, barW * 0.34));
-        ctx.font = `700 ${fontSize}px "Quicksand", system-ui, sans-serif`;
-        if (noteH >= 22) {
-          ctx.fillText(label, geom.centerX, bottomY - Math.min(13, noteH / 2));
+        if (showLabels && noteH >= 20) {
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = '#14151f';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const label = finger ? `${info.name}·${finger}` : info.name;
+          const fontSize = Math.min(11, Math.max(8.5, barW * 0.33));
+          ctx.font = `700 ${fontSize}px "JetBrains Mono", monospace`;
+          ctx.fillText(label, geom.centerX, bottomY - Math.min(12, noteH / 2));
         }
-
         ctx.restore();
       });
     });
@@ -619,410 +1432,14 @@ export class StageCanvas {
     ctx.restore();
   }
 
-  // --------------------------------------------------------------------------
-  // Real-Time Musical Staff (Treble Clef + Automatic Bass Clef / Ledger Lines)
-  // --------------------------------------------------------------------------
-  _drawMusicalStaff(ctx, w, h, t) {
-    const isPortraitPhone = w < 540 && h > 160;
-    const isUltraShort = h < 145;
-    const compact = w < 540 || h < 185;
-    const isSightPrompt = this.promptNotes.length > 0;
-
-    // Measure live ribbon bottom so staff never collides with floating controls on portrait/landscape mobile
-    let ribbonBottom = 54;
-    const ribbonEl = document.getElementById('stageRibbon');
-    const stageRect = this.canvas.getBoundingClientRect();
-    if (ribbonEl && stageRect) {
-      const rRect = ribbonEl.getBoundingClientRect();
-      ribbonBottom = Math.max(48, rRect.bottom - stageRect.top + 10);
-    }
-
-    const cardW = isPortraitPhone
-      ? Math.min(isSightPrompt ? 290 : 260, w - 28)
-      : compact
-      ? Math.min(220, w * 0.48)
-      : Math.min(310, w * 0.42);
-    const cardH = isUltraShort ? 78 : compact ? 96 : 114;
-
-    const cardX = isPortraitPhone
-      ? (w - cardW) / 2
-      : Math.max(14, w * 0.04);
-
-    // Center nicely in the available sky between ribbonBottom and Pip's perch
-    const bottomReserve = isPortraitPhone ? 76 : 14;
-    const availH = Math.max(cardH, h - ribbonBottom - bottomReserve);
-    const cardY = Math.max(ribbonBottom, ribbonBottom + (availH - cardH) * 0.45);
-    if (cardY + cardH > h - 6) return; // Gracefully skip if too little vertical space on ultra-tiny landscape
-
-    ctx.save();
-
-    // Translucent storybook parchment-glass card
-    ctx.fillStyle = 'rgba(20, 16, 42, 0.62)';
-    ctx.strokeStyle = 'rgba(255, 236, 179, 0.24)';
-    ctx.lineWidth = 1.2;
-    this._roundRect(ctx, cardX, cardY, cardW, cardH, 16);
-    ctx.fill();
-    ctx.stroke();
-
-    // Determine if we're primarily in bass register (< C4)
-    const activeMidis = [...this.activeNotes.keys()];
-    const promptMidis = this.promptNotes.map((p) => p.midi);
-    const allDisplayMidis = [...activeMidis, ...promptMidis];
-    const lowestMidi = allDisplayMidis.length > 0 ? Math.min(...allDisplayMidis) : 60;
-    const useBassClef = lowestMidi < 57 && !promptMidis.some((m) => m >= 60);
-
-    // 5 Staff Lines
-    // Treble clef bottom line = E4 (staffStep 2), top line = F5 (staffStep 10)
-    // Bass clef bottom line = G2 (staffStep -10), top line = A3 (staffStep -2)
-    const bottomLineStep = useBassClef ? -10 : 2;
-    const lineGap = compact ? 9 : 11;
-    const stepH = lineGap / 2;
-    const staffTopY = cardY + (cardH - lineGap * 4) / 2 + 2;
-    const bottomLineY = staffTopY + lineGap * 4;
-    const lineLeft = cardX + 14;
-    const lineRight = cardX + cardW - 14;
-
-    ctx.strokeStyle = 'rgba(255, 248, 225, 0.36)';
-    ctx.lineWidth = 1.1;
-    for (let i = 0; i < 5; i++) {
-      const y = staffTopY + i * lineGap;
-      ctx.beginPath();
-      ctx.moveTo(lineLeft, y);
-      ctx.lineTo(lineRight, y);
-      ctx.stroke();
-    }
-
-    // Clef Glyph
-    ctx.fillStyle = 'rgba(255, 232, 163, 0.85)';
-    if (useBassClef) {
-      ctx.font = `${compact ? 30 : 36}px serif`;
-      ctx.textBaseline = 'middle';
-      ctx.fillText('𝄢', lineLeft + 2, staffTopY + lineGap * 1.55);
-    } else {
-      ctx.font = `${compact ? 42 : 52}px serif`;
-      ctx.textBaseline = 'middle';
-      ctx.fillText('𝄞', lineLeft + 1, staffTopY + lineGap * 2.15);
-    }
-
-    // Small label in top-left corner of staff card
-    ctx.font = '600 9.5px "Quicksand", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255, 236, 179, 0.55)';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(useBassClef ? 'BASS STAFF' : 'TREBLE STAFF', cardX + 14, cardY + 7);
-
-    // Helper to draw a note on the staff
-    const drawStaffNote = (midi, xPos, opts = {}) => {
-      const info = midiToNoteInfo(midi, this.preferFlats);
-      const stepDiff = info.staffStep - bottomLineStep;
-      const y = bottomLineY - stepDiff * stepH;
-
-      // Clamp extreme notes subtly so they stay within card frame
-      const clampedY = Math.max(cardY + 14, Math.min(cardY + cardH - 12, y));
-
-      // Draw Ledger Lines if above top line (stepDiff > 8) or below bottom line (stepDiff < 0)
-      ctx.strokeStyle = 'rgba(255, 248, 225, 0.65)';
-      ctx.lineWidth = 1.2;
-      if (stepDiff <= -2) {
-        for (let s = -2; s >= stepDiff; s -= 2) {
-          const ly = bottomLineY - s * stepH;
-          if (ly <= cardY + cardH - 8) {
-            ctx.beginPath();
-            ctx.moveTo(xPos - 12, ly);
-            ctx.lineTo(xPos + 12, ly);
-            ctx.stroke();
-          }
-        }
-      } else if (stepDiff >= 10) {
-        for (let s = 10; s <= stepDiff; s += 2) {
-          const ly = bottomLineY - s * stepH;
-          if (ly >= cardY + 10) {
-            ctx.beginPath();
-            ctx.moveTo(xPos - 12, ly);
-            ctx.lineTo(xPos + 12, ly);
-            ctx.stroke();
-          }
-        }
-      }
-
-      const color = opts.color || info.color.hex;
-      const rx = compact ? 6.2 : 7.2;
-      const ry = compact ? 4.4 : 5.2;
-
-      ctx.save();
-      ctx.fillStyle = color;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = opts.isPrompt ? 14 + Math.sin(t * 6) * 5 : 10;
-
-      // Tilted musical notehead
-      ctx.translate(xPos, clampedY);
-      ctx.rotate(-0.26);
-      ctx.beginPath();
-      ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
-      ctx.fill();
-      if (opts.isPrompt) {
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.6;
-        ctx.stroke();
-      }
-      ctx.restore();
-
-      // Stem (up if below middle line stepDiff < 4, else down)
-      const stemUp = stepDiff < 4;
-      const stemLen = compact ? 22 : 27;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      if (stemUp) {
-        ctx.moveTo(xPos + rx - 1, clampedY);
-        ctx.lineTo(xPos + rx - 1, Math.max(cardY + 10, clampedY - stemLen));
-      } else {
-        ctx.moveTo(xPos - rx + 1, clampedY);
-        ctx.lineTo(xPos - rx + 1, Math.min(cardY + cardH - 8, clampedY + stemLen));
-      }
-      ctx.stroke();
-
-      // Accidental (♯ / ♭)
-      if (info.accidental) {
-        ctx.fillStyle = '#fff8e1';
-        ctx.font = `700 ${compact ? 14 : 16}px serif`;
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(info.accidental, xPos - rx - 3, clampedY);
-      }
-
-      // Subtle note name badge on active user notes (never during sight-read prompt!)
-      if (!opts.hideLabel) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-        ctx.font = '700 9.5px "Quicksand", system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText(info.fullName, xPos, cardY + cardH - 14);
-      }
-    };
-
-    const noteZoneStart = lineLeft + (compact ? 54 : 66);
-    const noteZoneWidth = Math.max(60, lineRight - noteZoneStart - 16);
-
-    // Draw Sight-Read Prompt Notes (if active)
-    if (this.promptNotes.length > 0) {
-      this.promptNotes.forEach((pn, idx) => {
-        const x = noteZoneStart + ((idx + 1) / (this.promptNotes.length + 1)) * noteZoneWidth;
-        const col =
-          pn.state === 'correct' ? '#5eead4' : pn.state === 'wrong' ? '#ff6b7a' : '#ffe66d';
-        drawStaffNote(pn.midi, x, {
-          color: col,
-          isPrompt: true,
-          hideLabel: pn.state === 'waiting',
-        });
-      });
-    } else if (activeMidis.length > 0) {
-      // Draw live played notes cleanly (spread horizontally if multiple notes are held)
-      const sorted = activeMidis.slice().sort((a, b) => a - b);
-      const center = noteZoneStart + noteZoneWidth * 0.45;
-      sorted.forEach((midi, idx) => {
-        const spread = sorted.length === 1 ? 0 : (idx - (sorted.length - 1) / 2) * 26;
-        drawStaffNote(midi, Math.max(noteZoneStart + 14, Math.min(lineRight - 16, center + spread)), {
-          hideLabel: false,
-        });
-      });
-    } else {
-      // Gentle idle hint
-      ctx.fillStyle = 'rgba(255, 248, 225, 0.34)';
-      ctx.font = '600 11px "Quicksand", system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('Play a key to see it here ♪', noteZoneStart + noteZoneWidth * 0.48, staffTopY + lineGap * 2);
-    }
-
-    ctx.restore();
-  }
-
-  // --------------------------------------------------------------------------
-  // Pip the Musical Owl Mascot (Vector-drawn, lively & charming)
-  // --------------------------------------------------------------------------
-  _drawPipOwl(ctx, w, h, t) {
-    const ultraShort = h < 130;
-    const compact = w < 540 || h < 175;
-    const scale = ultraShort ? 0.56 : compact ? 0.72 : 0.96;
-    const x = w - (ultraShort ? 36 : compact ? 46 : 74);
-    const baseY = h - (ultraShort ? 26 : compact ? 38 : 56);
-    const bob = Math.sin(t * 2.6) * (ultraShort ? 1.5 : 2.5);
-    const y = baseY + this.owl.hop + bob;
-
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(scale, scale);
-
-    // Glowing Crescent Moon Perch
-    ctx.save();
-    ctx.translate(0, 26 - this.owl.hop * 0.5);
-    ctx.fillStyle = '#ffe58f';
-    ctx.shadowColor = 'rgba(255, 229, 143, 0.5)';
-    ctx.shadowBlur = 14;
-    ctx.beginPath();
-    ctx.arc(0, 0, 28, 0.18 * Math.PI, 0.85 * Math.PI, false);
-    ctx.quadraticCurveTo(2, 16, -24, 12);
-    ctx.fill();
-    ctx.restore();
-
-    // Little wings (flap softly when you play!)
-    const flapAngle = this.owl.wingFlap * 0.55;
-    ctx.fillStyle = '#5c4b99';
-    // Left wing
-    ctx.save();
-    ctx.translate(-22, 2);
-    ctx.rotate(0.2 + flapAngle);
-    ctx.beginPath();
-    ctx.ellipse(-4, 6, 8, 16, 0.2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-    // Right wing
-    ctx.save();
-    ctx.translate(22, 2);
-    ctx.rotate(-0.2 - flapAngle);
-    ctx.beginPath();
-    ctx.ellipse(4, 6, 8, 16, -0.2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    // Plump starry owl body
-    const bodyGrad = ctx.createRadialGradient(-6, -12, 4, 0, 0, 32);
-    bodyGrad.addColorStop(0, '#8d7ae6');
-    bodyGrad.addColorStop(1, '#58469e');
-    ctx.fillStyle = bodyGrad;
-    ctx.beginPath();
-    ctx.ellipse(0, 2, 24, 27, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Cute feathery ear tufts
-    ctx.beginPath();
-    ctx.moveTo(-18, -16);
-    ctx.lineTo(-24, -30);
-    ctx.lineTo(-8, -22);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(18, -16);
-    ctx.lineTo(24, -30);
-    ctx.lineTo(8, -22);
-    ctx.closePath();
-    ctx.fill();
-
-    // Warm cream belly with subtle musical crescent feathers
-    ctx.fillStyle = '#fdf3d7';
-    ctx.beginPath();
-    ctx.ellipse(0, 11, 15, 14, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Belly feather scallops
-    ctx.strokeStyle = 'rgba(139, 112, 199, 0.45)';
-    ctx.lineWidth = 1.4;
-    for (const [fx, fy] of [[-5, 8], [5, 8], [0, 14]]) {
-      ctx.beginPath();
-      ctx.arc(fx, fy, 3.2, 0.15 * Math.PI, 0.85 * Math.PI);
-      ctx.stroke();
-    }
-
-    // Little golden feet on moon
-    ctx.fillStyle = '#ffb347';
-    ctx.beginPath();
-    ctx.ellipse(-7, 26, 4.5, 2.5, 0, 0, Math.PI * 2);
-    ctx.ellipse(7, 26, 4.5, 2.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Big expressive eyes
-    const eyeY = -6;
-    const pupilDx = this.owl.lookX * 2.2;
-    for (const ex of [-9, 9]) {
-      ctx.fillStyle = '#fffdf7';
-      ctx.beginPath();
-      ctx.arc(ex, eyeY, 8.2, 0, Math.PI * 2);
-      ctx.fill();
-
-      if (this.owl.blinking) {
-        ctx.strokeStyle = '#2e2459';
-        ctx.lineWidth = 2.2;
-        ctx.beginPath();
-        ctx.arc(ex, eyeY + 1, 5, 0.15 * Math.PI, 0.85 * Math.PI);
-        ctx.stroke();
-      } else if (this.owl.mood === 'celebrate') {
-        // Happy arched smiling eyes ^ ^
-        ctx.strokeStyle = '#2e2459';
-        ctx.lineWidth = 2.4;
-        ctx.beginPath();
-        ctx.arc(ex, eyeY + 2, 4.5, 1.15 * Math.PI, 1.85 * Math.PI);
-        ctx.stroke();
-      } else {
-        ctx.fillStyle = '#1b1438';
-        ctx.beginPath();
-        ctx.arc(ex + pupilDx, eyeY, 4.4, 0, Math.PI * 2);
-        ctx.fill();
-        // Starlight eye sparkle
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(ex + pupilDx + 1.6, eyeY - 1.6, 1.6, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    // Tiny golden beak
-    ctx.fillStyle = '#ffb347';
-    ctx.beginPath();
-    ctx.moveTo(-4, -1);
-    ctx.lineTo(4, -1);
-    ctx.lineTo(0, 5.5);
-    ctx.closePath();
-    ctx.fill();
-
-    // Tiny glowing wizard/conductor star above Pip's head
-    ctx.fillStyle = '#ffe66d';
-    ctx.shadowColor = '#ffe66d';
-    ctx.shadowBlur = 10;
-    ctx.font = '13px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('✦', 0, -34 + Math.sin(t * 4) * 2);
-
-    ctx.restore();
-
-    // Optional Speech Bubble to the left of Pip (kept tucked away on narrow phones during falling notes)
-    const isNarrowFalling = w < 540 && Boolean(this.fallingState && this.fallingState.song);
-    if (this.owl.speech && this.owl.speechTimer > 0 && w >= 360 && !isNarrowFalling) {
-      ctx.save();
-      ctx.font = '600 12px "Quicksand", system-ui, sans-serif';
-      const padX = 12;
-      const textW = ctx.measureText(this.owl.speech).width;
-      const boxW = Math.min(w * 0.55, textW + padX * 2);
-      const boxH = 28;
-      const boxX = Math.max(12, x - (compact ? 26 : 36) - boxW);
-      const boxY = Math.max(54, y - 34);
-
-      const alpha = Math.min(1, this.owl.speechTimer * 2);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = 'rgba(255, 250, 235, 0.94)';
-      ctx.shadowColor = 'rgba(12, 8, 30, 0.45)';
-      ctx.shadowBlur = 12;
-      this._roundRect(ctx, boxX, boxY, boxW, boxH, 12);
-      ctx.fill();
-
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#241b4a';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(this.owl.speech, boxX + boxW / 2, boxY + boxH / 2 + 0.5, boxW - 14);
-      ctx.restore();
-    }
-  }
-
   _roundRect(ctx, x, y, w, h, r) {
-    const rad = Math.min(r, w / 2, h / 2);
+    const radius = Math.min(r, w / 2, h / 2);
     ctx.beginPath();
-    ctx.moveTo(x + rad, y);
-    ctx.arcTo(x + w, y, x + w, y + h, rad);
-    ctx.arcTo(x + w, y + h, x, y + h, rad);
-    ctx.arcTo(x, y + h, x, y, rad);
-    ctx.arcTo(x, y, x + w, y, rad);
+    ctx.moveTo(x + radius, y);
+    ctx.arcTo(x + w, y, x + w, y + h, radius);
+    ctx.arcTo(x + w, y + h, x, y + h, radius);
+    ctx.arcTo(x, y + h, x, y, radius);
+    ctx.arcTo(x, y, x + w, y, radius);
     ctx.closePath();
   }
 }

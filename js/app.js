@@ -1,6 +1,6 @@
 // ============================================================================
-// Starlight Keys — Main Application Controller
-// Wires AudioEngine, KeyboardUI, StageCanvas, and LearningEngine together.
+// Nocturne Keys — Main Application Controller
+// Wires AudioEngine, KeyboardUI, StageCanvas, LearningEngine, and Web MIDI.
 // ============================================================================
 
 import { AudioEngine, INSTRUMENTS } from './audioEngine.js';
@@ -16,14 +16,13 @@ import {
 } from './musicTheory.js';
 import { SONGS } from './songs.js';
 
-// Determine a great default keyboard span based on viewport width & orientation
 function getRecommendedWhiteKeys() {
   const w = window.innerWidth;
   const h = window.innerHeight;
-  if (w < 480) return 8;                  // 1 octave (big, comfortable iPhone portrait keys!)
-  if (h < 500 && w < 940) return 11;      // 1.5 octaves (iPhone landscape — spacious pocket piano!)
-  if (w < 760) return 11;                 // 1.5 octaves (mini tablet)
-  return 15;                              // 2 crisp spacious octaves on iPad/desktop
+  if (w < 480) return 8;
+  if (h < 500 && w < 940) return 11;
+  if (w < 760) return 11;
+  return 15;
 }
 
 function isIOSDevice() {
@@ -35,7 +34,7 @@ function isIOSDevice() {
 
 function loadPrefs() {
   try {
-    return JSON.parse(localStorage.getItem('starlight_prefs') || '{}');
+    return JSON.parse(localStorage.getItem('nocturne_prefs') || '{}');
   } catch {
     return {};
   }
@@ -44,7 +43,7 @@ function loadPrefs() {
 function savePrefs(patch) {
   try {
     const next = { ...loadPrefs(), ...patch };
-    localStorage.setItem('starlight_prefs', JSON.stringify(next));
+    localStorage.setItem('nocturne_prefs', JSON.stringify(next));
   } catch {
     // Ignore storage quota errors
   }
@@ -62,10 +61,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const audioHintText = document.getElementById('audioHintText');
 
   if (audioHintText && isIOSDevice()) {
-    audioHintText.textContent = '✨ Tap any key to play • Silent switch off';
+    audioHintText.textContent = 'Tap any key to begin • Check side Silent switch';
   }
 
-  // Prevent accidental iOS Safari rubber-band page bounce outside scrollable containers
   document.addEventListener('touchmove', (e) => {
     if (e.target.closest('.drawer-body, .chord-pads, .mode-tabs')) return;
     if (e.target.closest('.app-shell')) {
@@ -76,20 +74,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const modeTabs = document.querySelectorAll('.mode-tab');
   const ribbonPanels = document.querySelectorAll('.ribbon-panel');
   const instrumentSelect = document.getElementById('instrumentSelect');
+  const vinylBtn = document.getElementById('vinylBtn');
   const metronomeBtn = document.getElementById('metronomeBtn');
   const metroDot = document.getElementById('metroDot');
   const metroLabel = document.getElementById('metroLabel');
 
-  // Freeplay elements
+  // Session (Free Play) elements
   const harmonyDot = document.getElementById('harmonyDot');
   const harmonyTitle = document.getElementById('harmonyTitle');
   const harmonySubtitle = document.getElementById('harmonySubtitle');
   const recordBtn = document.getElementById('recordBtn');
   const replayBtn = document.getElementById('replayBtn');
 
-  // Song Studio elements
+  // Repertoire (Song Studio) elements
   const songSelect = document.getElementById('songSelect');
   const songStyleBtns = document.querySelectorAll('[data-song-style]');
+  const songViewBtns = document.querySelectorAll('[data-song-view]');
+  const songGuidanceBtns = document.querySelectorAll('[data-song-guidance]');
   const songPlayBtn = document.getElementById('songPlayBtn');
   const speedSlider = document.getElementById('speedSlider');
   const speedLabel = document.getElementById('speedLabel');
@@ -97,15 +98,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const songStatPill = document.getElementById('songStatPill');
   const songTipBar = document.getElementById('songTipBar');
 
-  // Theory Explorer elements
+  // Harmony (Theory Explorer) elements
   const rootSelect = document.getElementById('rootSelect');
   const scaleSelect = document.getElementById('scaleSelect');
+  const chordDensityBtns = document.querySelectorAll('[data-chord-density]');
   const playScaleBtn = document.getElementById('playScaleBtn');
   const theoryMood = document.getElementById('theoryMood');
   const chordPadsEl = document.getElementById('chordPads');
 
-  // Game elements
+  // Sight & Ear Atelier elements
   const gameKindBtns = document.querySelectorAll('[data-game-kind]');
+  const gameClefGroup = document.getElementById('gameClefGroup');
+  const gameClefBtns = document.querySelectorAll('[data-game-clef]');
   const gameDiffBtns = document.querySelectorAll('[data-game-diff]');
   const gameReplayBtn = document.getElementById('gameReplayBtn');
   const gameHintBtn = document.getElementById('gameHintBtn');
@@ -118,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const rangeLabel = document.getElementById('rangeLabel');
   const miniRangeBar = document.getElementById('miniRangeBar');
   const miniWindow = document.getElementById('miniWindow');
+  const midiBadge = document.getElementById('midiBadge');
   const dualRowBtn = document.getElementById('dualRowBtn');
   const sustainBtn = document.getElementById('sustainBtn');
 
@@ -130,10 +135,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const dualRowToggle = document.getElementById('dualRowToggle');
   const rainbowToggle = document.getElementById('rainbowToggle');
   const staffToggle = document.getElementById('staffToggle');
+  const vinylToggle = document.getElementById('vinylToggle');
   const volumeSlider = document.getElementById('volumeSlider');
   const volumeVal = document.getElementById('volumeVal');
   const bpmSlider = document.getElementById('bpmSlider');
   const bpmVal = document.getElementById('bpmVal');
+  const midiStatusText = document.getElementById('midiStatusText');
 
   // ---- Core Engines ----
   const audio = new AudioEngine();
@@ -147,31 +154,36 @@ document.addEventListener('DOMContentLoaded', () => {
   const initialSpan = prefs.whiteKeyCount || getRecommendedWhiteKeys();
   const initialDualRow = Boolean(prefs.dualRow);
   const initialLabelMode = prefs.labelMode || 'notes';
-  const initialRainbow = prefs.rainbowMode !== undefined ? prefs.rainbowMode : true;
-  const initialStaff = prefs.showStaff !== undefined ? prefs.showStaff : true;
+  // Classic ivory & ebony by default; harmonic color tint is opt-in
+  const initialHarmonicTint = prefs.harmonicTint !== undefined ? Boolean(prefs.harmonicTint) : false;
+  const initialStaff = prefs.showStaff !== undefined ? Boolean(prefs.showStaff) : true;
 
   let stage = null;
   let learning = null;
 
   const updateHarmonyBadge = () => {
     const active = keyboard.getActiveNotes();
-    const preferFlats = learning && learning.mode === 'theory'
-      ? rootPrefersFlats(learning.theoryRootPc)
-      : false;
+    const preferFlats =
+      learning && learning.mode === 'theory'
+        ? rootPrefersFlats(learning.theoryRootPc)
+        : learning && learning.mode === 'songs'
+        ? Boolean(learning.song.preferFlats)
+        : false;
     const result = detectHarmony(active, preferFlats);
 
     if (!result) {
-      harmonyTitle.textContent = 'Tap keys or type A–L to play';
-      harmonySubtitle.textContent = 'Play 2+ notes together to discover intervals & chords';
-      harmonyDot.style.background = '#ffe066';
-      harmonyDot.style.boxShadow = '0 0 12px #ffe066';
+      harmonyTitle.textContent = 'Play keys, type A–L, or connect MIDI';
+      harmonySubtitle.textContent = 'Real-time Grand Staff & jazz chord detective';
+      harmonyDot.style.background = '#e8b86d';
+      harmonyDot.style.boxShadow = '0 0 10px rgba(232, 184, 109, 0.7)';
       return;
     }
 
     harmonyTitle.textContent = result.title;
     harmonySubtitle.textContent = result.subtitle;
-    harmonyDot.style.background = result.color;
-    harmonyDot.style.boxShadow = `0 0 14px ${result.color}`;
+    const dotCol = initialHarmonicTint || keyboard.rainbowMode ? result.color : '#e8b86d';
+    harmonyDot.style.background = dotCol;
+    harmonyDot.style.boxShadow = `0 0 12px ${dotCol}`;
   };
 
   const updateRangeDisplay = (startMidi, endMidi) => {
@@ -179,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const endInfo = midiToNoteInfo(endMidi);
     rangeLabel.textContent = `${startInfo.fullName} – ${endInfo.fullName}`;
 
-    // Map C2 (36) .. C7 (96) onto mini-range-bar
     const fullMin = 36;
     const fullSpan = 60;
     const leftPct = Math.max(0, Math.min(100, ((startMidi - fullMin) / fullSpan) * 100));
@@ -193,6 +204,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (stage) stage.setSustain(active);
     sustainBtn.classList.toggle('active', active);
     sustainBtn.setAttribute('aria-pressed', String(active));
+  };
+
+  const syncVinylUI = (enabled) => {
+    if (stage) stage.setVinylActive(enabled);
+    if (vinylBtn) {
+      vinylBtn.classList.toggle('active', enabled);
+      vinylBtn.setAttribute('aria-pressed', String(enabled));
+    }
+    if (vinylToggle) vinylToggle.checked = enabled;
   };
 
   const syncDualRowUI = () => {
@@ -221,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
     whiteKeyCount: initialSpan,
     dualRow: initialDualRow,
     labelMode: initialLabelMode,
-    rainbowMode: initialRainbow,
+    rainbowMode: initialHarmonicTint,
     onNoteOn: (midi, velocity) => {
       dismissAudioHint();
       audio.noteOn(midi, velocity);
@@ -260,6 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   stage = new StageCanvas(stageCanvasEl, keyboard);
   stage.setShowStaff(initialStaff);
+  stage.setHarmonicTint(initialHarmonicTint);
 
   learning = new LearningEngine({
     audio,
@@ -275,8 +296,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!hintDismissed) {
       hintDismissed = true;
       audioHint.classList.add('hidden');
-      if (stage && learning && learning.mode === 'freeplay' && !stage.owl.speech) {
-        stage.owlSay('Starlight sound awakened! Play away ♪', 'happy', 3.0);
+      if (stage && learning && learning.mode === 'freeplay' && !stage.marginalia.text) {
+        const inst = INSTRUMENTS.find((i) => i.id === audio.instrument);
+        stage.showNote(`${inst ? inst.name : 'Studio'} ready — try a 4-note 7th chord`, 'warm', 3.2);
       }
     }
   }
@@ -287,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
   INSTRUMENTS.forEach((inst) => {
     const opt = document.createElement('option');
     opt.value = inst.id;
-    opt.textContent = `${inst.icon} ${inst.name}`;
+    opt.textContent = inst.name;
     instrumentSelect.appendChild(opt);
   });
   instrumentSelect.value = audio.instrument;
@@ -295,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
   SONGS.forEach((song) => {
     const opt = document.createElement('option');
     opt.value = song.id;
-    opt.textContent = `${song.title} • ${song.level}`;
+    opt.textContent = `${song.title} · ${song.level}`;
     songSelect.appendChild(opt);
   });
   songSelect.value = learning.song.id;
@@ -338,7 +360,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---- Sync All Dynamic Learning UI ----
   function syncLearningUI() {
-    // Active Mode Tab & Panel
     modeTabs.forEach((tab) => {
       const isMatch = tab.dataset.mode === learning.mode;
       tab.classList.toggle('active', isMatch);
@@ -348,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
       panel.classList.toggle('active', panel.dataset.panel === learning.mode);
     });
 
-    // Freeplay Recorder
+    // Session Recorder
     recordBtn.classList.toggle('recording', learning.isRecording);
     recordBtn.innerHTML = learning.isRecording
       ? '<span class="rec-dot"></span> Stop Rec'
@@ -356,10 +377,16 @@ document.addEventListener('DOMContentLoaded', () => {
     replayBtn.disabled = learning.recordedEvents.length === 0 && !learning.isReplaying;
     replayBtn.textContent = learning.isReplaying ? '■ Stop' : '▶ Replay';
 
-    // Song Studio
+    // Repertoire Studio
     songSelect.value = learning.song.id;
     songStyleBtns.forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.songStyle === learning.songStyle);
+    });
+    songViewBtns.forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.songView === learning.songView);
+    });
+    songGuidanceBtns.forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.songGuidance === learning.songGuidance);
     });
     songPlayBtn.textContent = learning.songPlaying ? '■ Stop' : '▶ Start';
     const pct = Math.round(learning.speedMultiplier * 100);
@@ -370,25 +397,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const totalEv = learning.song.events.length;
     const doneEv = Math.min(totalEv, learning.hitEvents.size);
-    songStatPill.textContent = learning.songStats.streak >= 3
-      ? `${doneEv}/${totalEv} • 🔥 ${learning.songStats.streak}`
-      : `${doneEv} / ${totalEv}`;
-    songTipBar.textContent = `💡 Tip: ${learning.song.tip}`;
+    songStatPill.textContent = `${doneEv} / ${totalEv}`;
+    songTipBar.textContent = `${learning.song.composer} — ${learning.song.tip}`;
 
-    // Theory
+    // Harmony Explorer
+    chordDensityBtns.forEach((btn) => {
+      const isSev = btn.dataset.chordDensity === 'sevenths';
+      btn.classList.toggle('active', isSev === learning.theorySevenths);
+    });
     if (learning.mode === 'theory') {
       renderChordPads();
     }
 
-    // Ear & Sight Game
+    // Sight & Ear Atelier
     gameKindBtns.forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.gameKind === learning.gameKind);
+    });
+    if (gameClefGroup) {
+      gameClefGroup.style.display = learning.gameKind === 'sight' ? 'inline-flex' : 'none';
+    }
+    gameClefBtns.forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.gameClef === learning.gameClef);
     });
     gameDiffBtns.forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.gameDiff === learning.gameDifficulty);
     });
-    gameReplayBtn.textContent = learning.gameKind === 'sight' ? '🔊 Clue' : '🔊 Replay';
-    gameStreakPill.textContent = `🔥 ${learning.gameStreak} • Best ${learning.gameBest}`;
+    gameReplayBtn.textContent = learning.gameKind === 'sight' ? 'Clue' : 'Replay';
+    gameStreakPill.textContent = `${learning.gameSolved} read · ${learning.getGameAccuracy()}%`;
   }
 
   // ---- Wire Top Bar Events ----
@@ -404,8 +439,17 @@ document.addEventListener('DOMContentLoaded', () => {
     audio.setInstrument(instrumentSelect.value);
     savePrefs({ instrument: instrumentSelect.value });
     const inst = INSTRUMENTS.find((i) => i.id === instrumentSelect.value);
-    if (inst) stage.owlSay(`${inst.icon} Switched to ${inst.name}!`, 'happy', 2.2);
+    if (inst) stage.showNote(`${inst.name} — ${inst.desc}`, 'warm', 2.8);
   });
+
+  if (vinylBtn) {
+    vinylBtn.addEventListener('click', () => {
+      dismissAudioHint();
+      const enabled = audio.toggleVinylAmbience();
+      syncVinylUI(enabled);
+      stage.showNote(enabled ? 'Lo-fi vinyl & rain ambience on' : 'Vinyl ambience off', 'warm', 2.0);
+    });
+  }
 
   // Metronome
   metroLabel.textContent = String(audio.bpm);
@@ -414,7 +458,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   audio.onMetronomeBeat = (beat) => {
     metroDot.classList.remove('beat-on', 'beat-accent');
-    // Force reflow for crisp pulse
     void metroDot.offsetWidth;
     metroDot.classList.add(beat === 0 ? 'beat-accent' : 'beat-on');
     setTimeout(() => metroDot.classList.remove('beat-on', 'beat-accent'), 110);
@@ -427,7 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
     metronomeBtn.setAttribute('aria-pressed', String(running));
   });
 
-  // ---- Wire Freeplay Events ----
+  // ---- Wire Session Events ----
   recordBtn.addEventListener('click', () => {
     dismissAudioHint();
     learning.toggleRecording();
@@ -438,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
     learning.toggleReplay();
   });
 
-  // ---- Wire Song Studio Events ----
+  // ---- Wire Repertoire Events ----
   songSelect.addEventListener('change', () => {
     dismissAudioHint();
     learning.selectSong(songSelect.value, false);
@@ -448,6 +491,20 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => {
       dismissAudioHint();
       learning.setSongStyle(btn.dataset.songStyle);
+    });
+  });
+
+  songViewBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      dismissAudioHint();
+      learning.setSongView(btn.dataset.songView);
+    });
+  });
+
+  songGuidanceBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      dismissAudioHint();
+      learning.setSongGuidance(btn.dataset.songGuidance);
     });
   });
 
@@ -461,8 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   speedSlider.addEventListener('input', () => {
-    const val = Number(speedSlider.value);
-    learning.setSpeedMultiplier(val / 100);
+    learning.setSpeedMultiplier(Number(speedSlider.value) / 100);
   });
 
   if (speedCycleBtn) {
@@ -475,7 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ---- Wire Theory Explorer Events ----
+  // ---- Wire Harmony Explorer Events ----
   rootSelect.addEventListener('change', () => {
     dismissAudioHint();
     learning.setTheoryKey(Number(rootSelect.value), learning.theoryScaleId);
@@ -486,16 +542,30 @@ document.addEventListener('DOMContentLoaded', () => {
     learning.setTheoryKey(learning.theoryRootPc, scaleSelect.value);
   });
 
+  chordDensityBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      dismissAudioHint();
+      learning.setTheorySevenths(btn.dataset.chordDensity === 'sevenths');
+    });
+  });
+
   playScaleBtn.addEventListener('click', () => {
     dismissAudioHint();
     learning.playScaleDemo();
   });
 
-  // ---- Wire Game Events ----
+  // ---- Wire Sight & Ear Atelier Events ----
   gameKindBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
       dismissAudioHint();
       learning.setGameKind(btn.dataset.gameKind);
+    });
+  });
+
+  gameClefBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      dismissAudioHint();
+      learning.setGameClef(btn.dataset.gameClef);
     });
   });
 
@@ -525,7 +595,6 @@ document.addEventListener('DOMContentLoaded', () => {
   octDownBtn.addEventListener('click', () => keyboard.shiftOctave(-1));
   octUpBtn.addEventListener('click', () => keyboard.shiftOctave(1));
 
-  // Smooth tap-or-drag mini piano range scroller
   let miniDragging = false;
   const scrubMiniRange = (clientX) => {
     const rect = miniRangeBar.getBoundingClientRect();
@@ -566,10 +635,10 @@ document.addEventListener('DOMContentLoaded', () => {
     savePrefs({ dualRow: enabled });
     syncDualRowUI();
     stage.resize();
-    if (learning.mode === 'songs' && enabled) {
-      stage.owlSay('2-Row mode activates in Free Play, Scales & Ear Training!', 'happy', 2.8);
+    if (learning.mode === 'songs' && learning.songView === 'waterfall' && enabled) {
+      stage.showNote('2-Row manual pauses during Waterfall Bars; active in Sheet & Session modes', 'warm', 2.8);
     } else if (enabled) {
-      stage.owlSay('2-Row piano ready — play 2 big octaves at once! ✨', 'happy', 2.6);
+      stage.showNote('2-Row stacked manual active — 2 full octaves', 'warm', 2.4);
     }
   };
 
@@ -593,6 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (dualRowToggle) dualRowToggle.checked = keyboard.dualRow;
     rainbowToggle.checked = keyboard.rainbowMode;
     staffToggle.checked = stage.showStaff;
+    if (vinylToggle) vinylToggle.checked = audio.vinylEnabled;
     volumeSlider.value = String(Math.round(audio.volume * 100));
     volumeVal.textContent = `${Math.round(audio.volume * 100)}%`;
     bpmSlider.value = String(audio.bpm);
@@ -646,14 +716,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   rainbowToggle.addEventListener('change', () => {
-    keyboard.setRainbowMode(rainbowToggle.checked);
-    savePrefs({ rainbowMode: rainbowToggle.checked });
+    const on = rainbowToggle.checked;
+    keyboard.setRainbowMode(on);
+    stage.setHarmonicTint(on);
+    savePrefs({ harmonicTint: on });
   });
 
   staffToggle.addEventListener('change', () => {
     stage.setShowStaff(staffToggle.checked);
     savePrefs({ showStaff: staffToggle.checked });
   });
+
+  if (vinylToggle) {
+    vinylToggle.addEventListener('change', () => {
+      dismissAudioHint();
+      audio.setVinylAmbience(vinylToggle.checked);
+      syncVinylUI(audio.vinylEnabled);
+    });
+  }
 
   volumeSlider.addEventListener('input', () => {
     const vol = Number(volumeSlider.value) / 100;
@@ -669,6 +749,65 @@ document.addEventListener('DOMContentLoaded', () => {
     metroLabel.textContent = String(bpm);
     savePrefs({ bpm });
   });
+
+  // ---- Native Web MIDI API Integration (USB & Bluetooth MIDI Keyboards) ----
+  function initWebMIDI() {
+    if (!navigator.requestMIDIAccess) {
+      if (midiStatusText) {
+        midiStatusText.textContent = 'Web MIDI unavailable in this browser (touch & computer keys ready)';
+      }
+      return;
+    }
+
+    navigator.requestMIDIAccess().then(
+      (access) => {
+        const bindInputs = () => {
+          const names = [];
+          for (const input of access.inputs.values()) {
+            if (input.state === 'connected') {
+              names.push(input.name || 'MIDI Keyboard');
+              input.onmidimessage = (msg) => {
+                const [status, data1, data2] = msg.data;
+                const cmd = status & 0xf0;
+                if (cmd === 0x90 && data2 > 0) {
+                  // Note On
+                  const vel = Math.max(0.22, Math.min(1, data2 / 127));
+                  keyboard.handleMidiNoteOn(data1, vel);
+                } else if (cmd === 0x80 || (cmd === 0x90 && data2 === 0)) {
+                  // Note Off
+                  keyboard.handleMidiNoteOff(data1);
+                } else if (cmd === 0xb0 && data1 === 64) {
+                  // Sustain Pedal CC64
+                  const down = data2 >= 64;
+                  setSustainUI(down || sustainLatched);
+                }
+              };
+            }
+          }
+
+          if (names.length > 0) {
+            if (midiBadge) midiBadge.hidden = false;
+            if (midiStatusText) midiStatusText.textContent = `Connected: ${names.join(', ')}`;
+            stage.showNote(`MIDI connected: ${names[0]}`, 'sage', 3.0);
+          } else {
+            if (midiBadge) midiBadge.hidden = true;
+            if (midiStatusText) {
+              midiStatusText.textContent = 'Ready — plug in any USB or Bluetooth MIDI keyboard';
+            }
+          }
+        };
+
+        bindInputs();
+        access.onstatechange = bindInputs;
+      },
+      () => {
+        if (midiStatusText) {
+          midiStatusText.textContent = 'MIDI access declined (touch & computer keys ready)';
+        }
+      }
+    );
+  }
+  initWebMIDI();
 
   // ---- Responsive Canvas Resize & Orientation Adaptation ----
   let lastEffectiveDual = keyboard.isEffectivelyDualRow();
@@ -700,6 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---- Initial Render Sync ----
   updateRangeDisplay(keyboard.startMidi, keyboard.getEndMidi());
   syncDualRowUI();
+  syncVinylUI(false);
   syncLearningUI();
   syncSettingsUI();
 });

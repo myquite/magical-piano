@@ -1,12 +1,12 @@
 {
-  "name": "Starlight Keys — Magical Learning Piano",
-  "short_name": "Starlight Keys",
-  "description": "A whimsical, expressive interactive piano for mouse, keyboard, iPhone, and iPad designed to make learning real music magical.",
+  "name": "Nocturne Keys — Jazz & Lo-Fi Piano Atelier",
+  "short_name": "Nocturne Keys",
+  "description": "An atmospheric, jazz & lo-fi interactive piano studio for adult learners — built for reading real notation, jazz voicings, and expressive play on desktop, mobile, and MIDI keyboards.",
   "start_url": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#141129",
-  "theme_color": "#1b1738",
+  "background_color": "#0f111a",
+  "theme_color": "#10121c",
   "icons": [
     {
       "src": "./icons/icon-180.png",

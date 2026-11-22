@@ -1,9 +1,11 @@
 // ============================================================================
-// Starlight Keys — Interactive Learning, Song Studio, Theory & Ear-Training
+// Nocturne Keys — Adult Music Pedagogy, Repertoire, Harmony & Sight/Ear Engine
 // ============================================================================
 
 import {
   SCALES,
+  MAJOR_KEY_SIG_COUNT,
+  INTERVAL_INFO,
   getScalePitchClasses,
   getDiatonicChords,
   rootPrefersFlats,
@@ -27,33 +29,43 @@ export class LearningEngine {
     this._recordStartMs = 0;
     this._replayTimers = [];
 
-    // ---- Song Studio State ----
+    // ---- Repertoire / Song Studio State ----
     this.song = SONGS[0];
-    this.songStyle = 'wait'; // 'wait' | 'play' | 'demo'
+    this.songStyle = 'wait';       // 'wait' | 'play' | 'demo'
+    this.songView = 'sheet';       // 'sheet' | 'waterfall'
+    this.songGuidance = 'guided';  // 'guided' | 'assist' | 'pure'
     this.speedMultiplier = 1.0;
     this.songPlaying = false;
-    this.currentBeat = -1.2; // Gentle count-in lead
+    this.currentBeat = -1.2;
     this.waitIndex = 0;
     this.hitEvents = new Set();
-    this.chordBuffer = new Set(); // Tracks notes hit toward current multi-note chord event
+    this.chordBuffer = new Set();
     this.songStats = { hits: 0, misses: 0, streak: 0, bestStreak: 0, finished: false };
     this._songRaf = null;
     this._lastSongTs = 0;
     this._demoTriggered = new Set();
     this._demoReleaseTimers = [];
 
-    // ---- Theory Explorer State ----
+    // ---- Harmony & Scales Explorer State ----
     this.theoryRootPc = 0; // C
     this.theoryScaleId = 'major';
+    this.theorySevenths = true; // Jazz 7th chords by default
     this.activeChordIdx = null;
     this._theoryTimers = [];
 
-    // ---- Ear & Sight Game State ----
-    this.gameKind = 'sight'; // 'sight' | 'echo'
-    this.gameDifficulty = 'easy'; // 'easy' | 'medium' | 'pro'
+    // ---- Sight & Ear Atelier State ----
+    this.gameKind = 'sight';       // 'sight' | 'chords' | 'intervals' | 'echo'
+    this.gameClef = 'grand';       // 'treble' | 'bass' | 'grand'
+    this.gameDifficulty = 'easy';  // 'easy' (Landmarks) | 'medium' (Diatonic) | 'pro' (Accidentals)
+    this.gameSolved = 0;
+    this.gameAttempts = 0;
+    this.gameBest = Number(localStorage.getItem('nocturne_sight_best') || 0);
     this.gameStreak = 0;
-    this.gameBest = Number(localStorage.getItem('starlight_game_best') || 0);
-    this.gameTargetSeq = [];
+    this.gameTargetSeq = [];       // For sight/intervals/echo: sequential MIDI targets
+    this.gameChordTargets = [];    // For 'chords' drill: target chord MIDI notes
+    this.gameChordHit = new Set();
+    this.gameChordName = '';
+    this.gameAnchorMidi = null;    // For 'intervals' drill
     this.gameInputIdx = 0;
     this.gameBusy = false;
     this._gameTimers = [];
@@ -66,22 +78,26 @@ export class LearningEngine {
     this.stopAllActivities();
     this.mode = newMode;
 
-    // Clear previous overlays
+    // Reset overlays
     this.keyboard.setScaleGuide(null, null);
     this.keyboard.setTargets([]);
     this.keyboard.setChordHighlight([]);
-    this.keyboard.setDualRowSuspended(newMode === 'songs');
+    this.keyboard.setDualRowSuspended(newMode === 'songs' && this.songView === 'waterfall');
     this.stage.setFallingState(null);
     this.stage.setPromptNotes([]);
+    this.stage.setTranscribedNotes([]);
+    this.stage.setKeySignature(0);
+    this.stage.setPreferFlats(false);
+    this.keyboard.setPreferFlats(false);
 
     if (newMode === 'freeplay') {
-      this.stage.owlSay('Play anything your heart imagines! ♪', 'happy', 2.8);
+      this.stage.showNote('Open session — strike a voicing to inspect intervals & notation', 'warm', 3.0);
     } else if (newMode === 'songs') {
       this.selectSong(this.song.id, false);
-      this.stage.owlSay('Pick a melody and press Play — I’ll wait for you!', 'happy', 3.4);
+      this.stage.showNote(`${this.song.title} — ${this.song.keyLabel}, ${this.song.timeSig}`, 'warm', 3.2);
     } else if (newMode === 'theory') {
       this.applyTheoryView();
-      this.stage.owlSay('Glow-dots mark every note in the scale. Tap a chord!', 'happy', 3.4);
+      this.stage.showNote('Tap any chord pad to hear its voicing and see it highlighted', 'warm', 3.4);
     } else if (newMode === 'game') {
       this.startGameRound();
     }
@@ -97,10 +113,9 @@ export class LearningEngine {
   }
 
   // --------------------------------------------------------------------------
-  // User Note Events (routed from app.js)
+  // User Note Events (from KeyboardUI or Web MIDI)
   // --------------------------------------------------------------------------
   handleUserNoteOn(midi) {
-    // 1. Recorder capture (in freeplay or theory)
     if (this.isRecording) {
       this.recordedEvents.push({
         type: 'on',
@@ -109,18 +124,15 @@ export class LearningEngine {
       });
     }
 
-    // 2. Song Studio checking
     if (this.mode === 'songs' && this.songPlaying && this.songStyle !== 'demo') {
       this._handleSongNoteHit(midi);
     }
 
-    // 3. Theory Chord Practice feedback
     if (this.mode === 'theory' && this.activeChordIdx !== null) {
       this._checkTheoryChordPlayed();
     }
 
-    // 4. Ear & Sight Game checking
-    if (this.mode === 'game' && !this.gameBusy && this.gameTargetSeq.length > 0) {
+    if (this.mode === 'game' && !this.gameBusy) {
       this._handleGameInput(midi);
     }
   }
@@ -136,14 +148,14 @@ export class LearningEngine {
   }
 
   // --------------------------------------------------------------------------
-  // Freeplay Melody Recorder
+  // Freeplay Phrase Recorder
   // --------------------------------------------------------------------------
   toggleRecording() {
     if (this.isRecording) {
       this.isRecording = false;
-      this.stage.owlSay(
-        this.recordedEvents.length > 0 ? 'Saved your melody! Tap Play to hear it ♪' : 'Recording stopped',
-        'happy',
+      this.stage.showNote(
+        this.recordedEvents.length > 0 ? 'Phrase captured — press Replay to listen back' : 'Recording stopped',
+        'sage',
         2.8
       );
     } else {
@@ -151,7 +163,7 @@ export class LearningEngine {
       this.recordedEvents = [];
       this._recordStartMs = performance.now();
       this.isRecording = true;
-      this.stage.owlSay('Recording... play your magical tune!', 'singing', 3.0);
+      this.stage.showNote('Recording phrase…', 'rose', 3.0);
     }
     this._emit();
   }
@@ -162,7 +174,7 @@ export class LearningEngine {
       return;
     }
     if (this.recordedEvents.length === 0) {
-      this.stage.owlSay('Record a little melody first!', 'curious', 2.4);
+      this.stage.showNote('Record a short phrase first', 'amber', 2.4);
       return;
     }
     this.isRecording = false;
@@ -178,7 +190,7 @@ export class LearningEngine {
       const timer = setTimeout(() => {
         if (!this.isReplaying) return;
         if (ev.type === 'on') {
-          this.audio.noteOn(ev.midi, 0.78);
+          this.audio.noteOn(ev.midi, 0.76);
           this.keyboard.setExternalActive(ev.midi, true);
           this.stage.triggerNoteVisual(ev.midi, true);
         } else {
@@ -207,19 +219,21 @@ export class LearningEngine {
   }
 
   // --------------------------------------------------------------------------
-  // Guided Song Studio (Wait Mode, Play-Along Tempo, Demo Auto-Play)
+  // Repertoire / Song Studio (Sheet Music & Waterfall, Wait / Tempo / Listen)
   // --------------------------------------------------------------------------
   selectSong(songId, autoStart = false) {
     this.stopSong(false);
     this.song = getSongById(songId);
+    this.stage.setPreferFlats(Boolean(this.song.preferFlats));
+    this.stage.setKeySignature(this.song.keySigCount || 0);
+    this.keyboard.setPreferFlats(Boolean(this.song.preferFlats));
     this.keyboard.ensureMidiRangeVisible(this.song.minMidi, this.song.maxMidi);
     this._resetSongProgress();
 
-    // Preview first target note immediately so learner sees where to place their hand!
     this._updateSongTargets();
     this.stage.setFallingState({
       song: this.song,
-      currentBeat: -0.6,
+      currentBeat: -0.5,
       waitIndex: 0,
       lookaheadBeats: 4.2,
       hitEvents: this.hitEvents,
@@ -241,13 +255,33 @@ export class LearningEngine {
     }
   }
 
+  setSongView(view) {
+    this.songView = view === 'waterfall' ? 'waterfall' : 'sheet';
+    this.stage.setSongView(this.songView);
+    this.keyboard.setDualRowSuspended(this.mode === 'songs' && this.songView === 'waterfall');
+    this._emit();
+  }
+
+  setSongGuidance(level) {
+    this.songGuidance = level; // 'guided' | 'assist' | 'pure'
+    this.stage.setSongGuidance(level);
+    this._updateSongTargets();
+    const labelMap = {
+      guided: 'Guided — staff, fingerings & glowing keys',
+      assist: 'Reading Assist — staff & fingerings only (keys unlit)',
+      pure: 'Pure Sheet — clean notation without hints',
+    };
+    this.stage.showNote(labelMap[level] || '', 'warm', 2.8);
+    this._emit();
+  }
+
   setSpeedMultiplier(mult) {
     this.speedMultiplier = Math.max(0.5, Math.min(1.25, mult));
     this._emit();
   }
 
   _resetSongProgress() {
-    this.currentBeat = -1.0;
+    this.currentBeat = -0.9;
     this.waitIndex = 0;
     this.hitEvents = new Set();
     this.chordBuffer = new Set();
@@ -258,17 +292,20 @@ export class LearningEngine {
   startSong(style = this.songStyle) {
     this.stopSong(false);
     this.songStyle = style;
+    this.stage.setPreferFlats(Boolean(this.song.preferFlats));
+    this.stage.setKeySignature(this.song.keySigCount || 0);
+    this.keyboard.setPreferFlats(Boolean(this.song.preferFlats));
     this.keyboard.ensureMidiRangeVisible(this.song.minMidi, this.song.maxMidi);
     this._resetSongProgress();
     this.songPlaying = true;
     this._lastSongTs = performance.now();
 
     if (style === 'demo') {
-      this.stage.owlSay(`Listening to ${this.song.title} ♪`, 'singing', 3.0);
+      this.stage.showNote(`Previewing ${this.song.title} (${this.song.composer})`, 'warm', 3.0);
     } else if (style === 'wait') {
-      this.stage.owlSay('Play the glowing starlight keys — take your time!', 'happy', 3.0);
+      this.stage.showNote('Wait Mode — read at your own tempo; the score waits for each note', 'warm', 3.2);
     } else {
-      this.stage.owlSay('Follow the falling starlight in rhythm!', 'happy', 3.0);
+      this.stage.showNote(`Tempo Mode — ${Math.round(this.song.bpm * this.speedMultiplier)} BPM`, 'warm', 2.8);
     }
 
     this._updateSongTargets();
@@ -292,7 +329,7 @@ export class LearningEngine {
       this._updateSongTargets();
       this.stage.setFallingState({
         song: this.song,
-        currentBeat: -0.6,
+        currentBeat: -0.5,
         waitIndex: 0,
         lookaheadBeats: 4.2,
         hitEvents: this.hitEvents,
@@ -315,22 +352,20 @@ export class LearningEngine {
           this._finishSong();
           return;
         }
-        // Glide smoothly up to the target note's beat, then pause patiently until played!
         if (this.currentBeat < targetEv.beat) {
           this.currentBeat = Math.min(targetEv.beat, this.currentBeat + dt * beatsPerSec);
         }
       } else if (this.songStyle === 'demo') {
         this.currentBeat += dt * beatsPerSec;
-        // Trigger notes as currentBeat crosses them
         this.song.events.forEach((ev, idx) => {
           if (!this._demoTriggered.has(idx) && this.currentBeat >= ev.beat) {
             this._demoTriggered.add(idx);
             this.hitEvents.add(idx);
             this.waitIndex = idx + 1;
-            const durMs = Math.max(140, (ev.duration / beatsPerSec) * 1000 * 0.88);
+            const durMs = Math.max(150, (ev.duration / beatsPerSec) * 1000 * 0.90);
 
             ev.notes.forEach((midi) => {
-              this.audio.noteOn(midi, 0.76);
+              this.audio.noteOn(midi, 0.74);
               this.keyboard.setExternalActive(midi, true);
               this.stage.triggerNoteVisual(midi, true);
 
@@ -347,20 +382,19 @@ export class LearningEngine {
 
         if (this.currentBeat > this.song.totalBeats + 0.8) {
           this.stopSong(true);
-          this.stage.owlSay('Now try it yourself in Wait Mode! ✨', 'happy', 3.4);
+          this.stage.showNote('Demo complete — switch to Wait Mode to read through it yourself', 'sage', 3.6);
           return;
         }
       } else if (this.songStyle === 'play') {
         this.currentBeat += dt * beatsPerSec;
 
-        // Advance past missed notes after a generous timing window (+0.55 beat)
         while (this.waitIndex < this.song.events.length) {
           const ev = this.song.events[this.waitIndex];
           if (this.hitEvents.has(this.waitIndex)) {
             this.waitIndex++;
             continue;
           }
-          if (this.currentBeat > ev.beat + 0.58) {
+          if (this.currentBeat > ev.beat + 0.62) {
             this.songStats.misses++;
             this.songStats.streak = 0;
             this.chordBuffer.clear();
@@ -396,19 +430,14 @@ export class LearningEngine {
     const ev = this.song.events[this.waitIndex];
     if (!ev) return;
 
-    // In play-along mode, also check if user hit slightly early on the current or next note
     if (this.songStyle === 'play') {
       const dist = Math.abs(this.currentBeat - ev.beat);
-      if (dist > 0.72) {
-        // Still waiting for note to arrive
-        return;
-      }
+      if (dist > 0.75) return;
     }
 
     if (ev.notes.includes(midi)) {
       this.chordBuffer.add(midi);
 
-      // Check if all notes in this event (1 for melody, 3+ for chords) are hit!
       const allHit = ev.notes.every((n) => this.chordBuffer.has(n));
       if (allHit) {
         this.hitEvents.add(this.waitIndex);
@@ -419,18 +448,12 @@ export class LearningEngine {
           this.songStats.bestStreak = this.songStats.streak;
         }
 
-        // Cheer on streak milestones
-        if (this.songStats.streak > 0 && this.songStats.streak % 8 === 0) {
-          this.stage.owlSay(`✨ ${this.songStats.streak} in a row! Wonderful!`, 'celebrate', 2.4);
-        }
-
         this.waitIndex++;
         if (this.waitIndex >= this.song.events.length) {
           this._finishSong();
           return;
         }
 
-        // In wait mode, jump beat forward cleanly if user played slightly ahead of glide
         const prevBeat = ev.beat;
         if (this.songStyle === 'wait' && this.currentBeat < prevBeat) {
           this.currentBeat = prevBeat;
@@ -439,11 +462,16 @@ export class LearningEngine {
         this._emit();
       }
     } else if (this.songStyle === 'wait') {
-      // Gentle nudge without harshness
       this.songStats.misses++;
       this.songStats.streak = 0;
-      const needed = ev.notes.map((n) => midiToNoteInfo(n).name).join(' + ');
-      this.stage.owlSay(`Try ${needed} — look for the glowing star key!`, 'curious', 2.2);
+      const preferFlats = Boolean(this.song.preferFlats);
+      const needed = ev.notes.map((n) => midiToNoteInfo(n, preferFlats).fullName).join(' + ');
+      if (this.songGuidance === 'pure') {
+        const dir = midi < ev.notes[0] ? 'higher' : 'lower';
+        this.stage.showNote(`Read a little ${dir} on the staff`, 'amber', 2.0);
+      } else {
+        this.stage.showNote(`Target: ${needed}`, 'amber', 2.0);
+      }
       this._emit();
     }
   }
@@ -459,8 +487,7 @@ export class LearningEngine {
       return;
     }
 
-    // Ensure current note is visible; when shifting on a narrow phone, look ahead 2 notes
-    // so the whole mini-phrase frames cleanly without bouncing back and forth!
+    // Keep upcoming phrase framed in the visible keyboard range
     const minN = Math.min(...ev.notes);
     const maxN = Math.max(...ev.notes);
     if (minN < this.keyboard.startMidi || maxN > this.keyboard.getEndMidi()) {
@@ -471,12 +498,18 @@ export class LearningEngine {
         if (!nextEv) break;
         const candMin = Math.min(phraseMin, ...nextEv.notes);
         const candMax = Math.max(phraseMax, ...nextEv.notes);
-        if (candMax - candMin <= 12) {
+        if (candMax - candMin <= 14) {
           phraseMin = candMin;
           phraseMax = candMax;
         }
       }
       this.keyboard.ensureMidiRangeVisible(phraseMin, phraseMax);
+    }
+
+    // Only light up target keys in 'guided' mode (in 'assist' & 'pure', learner reads from the staff!)
+    if (this.songGuidance !== 'guided') {
+      this.keyboard.setTargets([]);
+      return;
     }
 
     const targets = ev.notes.map((midi, i) => ({
@@ -497,15 +530,15 @@ export class LearningEngine {
 
     const total = Math.max(1, this.songStats.hits + this.songStats.misses);
     const accuracy = Math.round((this.songStats.hits / total) * 100);
-    const stars = accuracy >= 92 ? '★★★' : accuracy >= 75 ? '★★☆' : '★☆☆';
+    const tempoPct = Math.round(this.speedMultiplier * 100);
 
-    this.audio.playSparkleChime([72, 76, 79, 84]);
-    this.stage.celebrateBurst(`${stars} ${this.song.title} Complete! (${accuracy}%)`);
+    this.audio.playCadenceChime([60, 64, 67, 71, 74]);
+    this.stage.celebrateBurst(`${this.song.title} — ${accuracy}% accuracy (${tempoPct}% tempo)`);
     this._emit();
   }
 
   // --------------------------------------------------------------------------
-  // Scales & Chords Explorer
+  // Harmony & Scales Explorer (Triads + Jazz 7th Chords)
   // --------------------------------------------------------------------------
   setTheoryKey(rootPc, scaleId = this.theoryScaleId) {
     this.theoryRootPc = ((rootPc % 12) + 12) % 12;
@@ -516,10 +549,25 @@ export class LearningEngine {
     this._emit();
   }
 
+  setTheorySevenths(useSevenths) {
+    this.theorySevenths = Boolean(useSevenths);
+    this.activeChordIdx = null;
+    this.keyboard.setChordHighlight([]);
+    this._emit();
+  }
+
   applyTheoryView() {
     const preferFlats = rootPrefersFlats(this.theoryRootPc);
     this.keyboard.setPreferFlats(preferFlats);
     this.stage.setPreferFlats(preferFlats);
+
+    // Derive appropriate key signature for major/minor/dorian modes
+    let sigRoot = this.theoryRootPc;
+    if (this.theoryScaleId === 'minor') sigRoot = (this.theoryRootPc + 3) % 12;
+    else if (this.theoryScaleId === 'dorian') sigRoot = (this.theoryRootPc + 10) % 12;
+    else if (this.theoryScaleId === 'mixolydian') sigRoot = (this.theoryRootPc + 5) % 12;
+    else if (this.theoryScaleId === 'lydian') sigRoot = (this.theoryRootPc + 7) % 12;
+    this.stage.setKeySignature(MAJOR_KEY_SIG_COUNT[sigRoot] || 0);
 
     const pcs = getScalePitchClasses(this.theoryRootPc, this.theoryScaleId);
     this.keyboard.setScaleGuide(pcs, this.theoryRootPc);
@@ -527,7 +575,7 @@ export class LearningEngine {
 
   getTheoryChords() {
     const baseOctave = Math.max(3, Math.min(4, Math.floor(this.keyboard.startMidi / 12) - 1));
-    return getDiatonicChords(this.theoryRootPc, this.theoryScaleId, baseOctave);
+    return getDiatonicChords(this.theoryRootPc, this.theoryScaleId, baseOctave, this.theorySevenths);
   }
 
   previewTheoryChord(chordIndex) {
@@ -539,20 +587,20 @@ export class LearningEngine {
     this.activeChordIdx = chordIndex;
     this.keyboard.ensureMidiRangeVisible(Math.min(...chord.notes), Math.max(...chord.notes));
     this.keyboard.setChordHighlight(chord.notes);
-    this.stage.owlSay(`Try playing ${chord.symbol} (${chord.roman}) together!`, 'singing', 3.4);
+    const noteNames = chord.notes.map((m) => midiToNoteInfo(m, rootPrefersFlats(this.theoryRootPc)).name).join(' · ');
+    this.stage.showNote(`${chord.symbol} (${chord.roman}) — ${noteNames}`, 'warm', 3.6);
 
-    // Gentle arpeggiated strum so user hears every note clearly
     chord.notes.forEach((midi, idx) => {
       const tOn = setTimeout(() => {
         this.audio.noteOn(midi, 0.72);
         this.keyboard.setExternalActive(midi, true);
         this.stage.triggerNoteVisual(midi, true);
-      }, idx * 75);
+      }, idx * 70);
       const tOff = setTimeout(() => {
         this.audio.noteOff(midi);
         this.keyboard.setExternalActive(midi, false);
         this.stage.releaseNoteVisual(midi);
-      }, 950 + idx * 50);
+      }, 1050 + idx * 50);
       this._theoryTimers.push(tOn, tOff);
     });
     this._emit();
@@ -566,19 +614,19 @@ export class LearningEngine {
     const seq = [...scale.intervals.map((iv) => start + iv), start + 12];
 
     this.keyboard.ensureMidiRangeVisible(seq[0], seq[seq.length - 1]);
-    this.stage.owlSay(`Listening to the ${scale.shortName} scale ♪`, 'singing', 3.2);
+    this.stage.showNote(`Auditioning ${scale.name}`, 'warm', 3.0);
 
     seq.forEach((midi, i) => {
       const tOn = setTimeout(() => {
-        this.audio.noteOn(midi, 0.76);
+        this.audio.noteOn(midi, 0.74);
         this.keyboard.setExternalActive(midi, true);
         this.stage.triggerNoteVisual(midi, true);
-      }, i * 260);
+      }, i * 250);
       const tOff = setTimeout(() => {
         this.audio.noteOff(midi);
         this.keyboard.setExternalActive(midi, false);
         this.stage.releaseNoteVisual(midi);
-      }, i * 260 + 220);
+      }, i * 250 + 210);
       this._theoryTimers.push(tOn, tOff);
     });
   }
@@ -593,7 +641,7 @@ export class LearningEngine {
     const neededPcs = chord.notes.map((m) => ((m % 12) + 12) % 12);
 
     if (neededPcs.every((pc) => heldPcs.has(pc))) {
-      this.stage.owlSay(`✨ Lovely ${chord.symbol} chord!`, 'celebrate', 2.4);
+      this.stage.showNote(`Clean ${chord.symbol} voicing`, 'sage', 2.4);
       this.activeChordIdx = null;
       this.keyboard.setChordHighlight([]);
       this._emit();
@@ -609,55 +657,164 @@ export class LearningEngine {
   }
 
   // --------------------------------------------------------------------------
-  // Ear Training & Sight-Reading Game ("Catch the Firefly")
+  // Sight & Ear Atelier (Landmarks, Grand Staff, Chords, Intervals, Echo)
   // --------------------------------------------------------------------------
   setGameKind(kind) {
-    this.gameKind = kind;
-    this.gameStreak = 0;
+    this.gameKind = kind; // 'sight' | 'chords' | 'intervals' | 'echo'
+    this.startGameRound();
+  }
+
+  setGameClef(clef) {
+    this.gameClef = clef; // 'treble' | 'bass' | 'grand'
     this.startGameRound();
   }
 
   setGameDifficulty(diff) {
-    this.gameDifficulty = diff;
-    this.gameStreak = 0;
+    this.gameDifficulty = diff; // 'easy' (Landmarks) | 'medium' (Diatonic) | 'pro' (Accidentals)
     this.startGameRound();
   }
 
-  _getGameNotePool() {
-    // Pools stay inside C4–E5 so they sit cleanly on the Treble Staff & visible keys
-    if (this.gameDifficulty === 'easy') {
-      return [60, 62, 64, 65, 67]; // C4 D4 E4 F4 G4 (classic 5-finger position)
-    }
-    if (this.gameDifficulty === 'medium') {
-      return [60, 62, 64, 65, 67, 69, 71, 72]; // Full C4..C5 Major scale
-    }
-    return [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 74, 76]; // Chromatic + upper notes
+  getGameAccuracy() {
+    if (this.gameAttempts === 0) return 100;
+    return Math.round((this.gameSolved / this.gameAttempts) * 100);
+  }
+
+  _getSightPool() {
+    // Landmarks method: Middle C (60), Treble G (67), High C (72), Bass F (53), Low C (48) + step neighbours
+    const trebleLandmarks = [60, 62, 64, 65, 67, 69, 72];
+    const bassLandmarks   = [48, 50, 52, 53, 55, 57, 60];
+
+    const trebleDiatonic  = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77];
+    const bassDiatonic    = [43, 45, 47, 48, 50, 52, 53, 55, 57, 59, 60];
+
+    const trebleChromatic = [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 74, 75, 76];
+    const bassChromatic   = [45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60];
+
+    const pickTier = (t, b) => {
+      if (this.gameClef === 'treble') return t.map((midi) => ({ midi, clef: 'treble' }));
+      if (this.gameClef === 'bass') return b.map((midi) => ({ midi, clef: 'bass' }));
+      return [
+        ...t.map((midi) => ({ midi, clef: 'treble' })),
+        ...b.filter((m) => m !== 60).map((midi) => ({ midi, clef: 'bass' })),
+      ];
+    };
+
+    if (this.gameDifficulty === 'easy') return pickTier(trebleLandmarks, bassLandmarks);
+    if (this.gameDifficulty === 'medium') return pickTier(trebleDiatonic, bassDiatonic);
+    return pickTier(trebleChromatic, bassChromatic);
   }
 
   startGameRound() {
     this._clearGameTimers();
     this.keyboard.setTargets([]);
-    this.keyboard.ensureMidiRangeVisible(60, 76);
+    this.stage.setShowStaff(true);
+    this.stage.setTranscribedNotes([]);
+    this.stage.setKeySignature(0);
 
-    const pool = this._getGameNotePool();
     this.gameInputIdx = 0;
+    this.gameChordTargets = [];
+    this.gameChordHit.clear();
+    this.gameAnchorMidi = null;
 
     if (this.gameKind === 'sight') {
+      const pool = this._getSightPool();
       const pick = pool[Math.floor(Math.random() * pool.length)];
-      this.gameTargetSeq = [pick];
-      this.stage.setShowStaff(true);
-      this.stage.setPromptNotes([{ midi: pick, state: 'waiting' }]);
-      this.stage.owlSay('Read the glowing note on the staff and play it!', 'curious', 3.4);
+      this.gameTargetSeq = [pick.midi];
+
+      // Frame keyboard cleanly for the selected clef
+      if (pick.clef === 'bass') {
+        this.keyboard.ensureMidiRangeVisible(48, 60);
+      } else {
+        this.keyboard.ensureMidiRangeVisible(60, 76);
+      }
+
+      const useFlat = this.gameDifficulty === 'pro' && Math.random() < 0.5;
+      this.stage.setPreferFlats(useFlat);
+      this.keyboard.setPreferFlats(useFlat);
+
+      this.stage.setPromptNotes([{ midi: pick.midi, state: 'waiting', clef: pick.clef }]);
+      const cue =
+        this.gameDifficulty === 'easy'
+          ? 'Anchor on Middle C, Treble G, or Bass F and read the note'
+          : 'Identify and play the engraved pitch';
+      this.stage.showNote(cue, 'warm', 3.2);
       this.gameBusy = false;
+    } else if (this.gameKind === 'chords') {
+      // Sight-Read Triads (easy) or Jazz 7th Chords (medium/pro) on the Grand Staff
+      this.keyboard.ensureMidiRangeVisible(57, 76);
+      const chordBank =
+        this.gameDifficulty === 'easy'
+          ? [
+              { name: 'C Major', notes: [60, 64, 67], flats: false },
+              { name: 'Dm',      notes: [62, 65, 69], flats: false },
+              { name: 'Em',      notes: [64, 67, 71], flats: false },
+              { name: 'F Major', notes: [65, 69, 72], flats: false },
+              { name: 'G Major', notes: [67, 71, 74], flats: false },
+              { name: 'Am',      notes: [69, 72, 76], flats: false },
+            ]
+          : this.gameDifficulty === 'medium'
+          ? [
+              { name: 'Cmaj7',   notes: [60, 64, 67, 71], flats: false },
+              { name: 'Dm7',     notes: [62, 65, 69, 72], flats: false },
+              { name: 'Em7',     notes: [64, 67, 71, 74], flats: false },
+              { name: 'Fmaj7',   notes: [65, 69, 72, 76], flats: false },
+              { name: 'G7',      notes: [62, 65, 67, 71], flats: false },
+              { name: 'Am7',     notes: [60, 64, 67, 69], flats: false },
+            ]
+          : [
+              { name: 'B♭maj7',  notes: [58, 62, 65, 69], flats: true },
+              { name: 'Cm7',     notes: [60, 63, 67, 70], flats: true },
+              { name: 'E♭maj7',  notes: [63, 67, 70, 74], flats: true },
+              { name: 'Fm7',     notes: [65, 68, 72, 75], flats: true },
+              { name: 'D7',      notes: [62, 66, 69, 72], flats: false },
+              { name: 'Bm7♭5',   notes: [59, 62, 65, 69], flats: false },
+            ];
+
+      const pick = chordBank[Math.floor(Math.random() * chordBank.length)];
+      this.gameChordTargets = pick.notes;
+      this.gameChordName = pick.name;
+      this.gameTargetSeq = pick.notes;
+      this.stage.setPreferFlats(pick.flats);
+      this.keyboard.setPreferFlats(pick.flats);
+      this.stage.setPromptNotes(
+        pick.notes.map((midi) => ({ midi, state: 'waiting', stacked: true }))
+      );
+      this.stage.showNote(`Read and voice all ${pick.notes.length} notes of this chord`, 'warm', 3.4);
+      this.gameBusy = false;
+    } else if (this.gameKind === 'intervals') {
+      // Ear Interval Recognition: anchor note shown & heard, then target interval heard
+      this.keyboard.ensureMidiRangeVisible(60, 76);
+      const intervals =
+        this.gameDifficulty === 'easy'
+          ? [2, 3, 4, 5, 7]             // M2, m3, M3, P4, P5
+          : this.gameDifficulty === 'medium'
+          ? [2, 3, 4, 5, 7, 9, 10, 11, 12] // + M6, m7, M7, P8
+          : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; // All chromatic intervals
+
+      const anchor = 60 + [0, 2, 4, 5, 7][Math.floor(Math.random() * 5)];
+      const iv = intervals[Math.floor(Math.random() * intervals.length)];
+      const target = anchor + iv;
+
+      this.gameAnchorMidi = anchor;
+      this.gameTargetSeq = [target];
+      this.stage.setPromptNotes([{ midi: anchor, state: 'anchor' }]);
+      this.replayGameEcho();
     } else {
-      // Melodic Echo: starts at 2 notes on Easy, scales gently up to 4-5 notes with streak
+      // Melodic Echo with live Grand Staff transcription
+      this.keyboard.ensureMidiRangeVisible(60, 76);
+      const pool =
+        this.gameDifficulty === 'easy'
+          ? [60, 62, 64, 65, 67]
+          : this.gameDifficulty === 'medium'
+          ? [60, 62, 64, 65, 67, 69, 71, 72]
+          : [60, 62, 63, 65, 67, 69, 70, 72, 74]; // C Dorian jazzy vocabulary
+
       const baseLen = this.gameDifficulty === 'easy' ? 2 : this.gameDifficulty === 'medium' ? 3 : 4;
-      const len = Math.min(5, baseLen + Math.floor(this.gameStreak / 3));
+      const len = Math.min(5, baseLen + Math.floor(this.gameStreak / 4));
       const seq = [];
       let prev = pool[Math.floor(Math.random() * pool.length)];
       seq.push(prev);
       for (let i = 1; i < len; i++) {
-        // Choose musical stepwise/small-leap intervals so phrases sound melodic!
         const nearby = pool.filter((m) => Math.abs(m - prev) <= 5);
         const candidates = nearby.length > 0 ? nearby : pool;
         prev = candidates[Math.floor(Math.random() * candidates.length)];
@@ -665,6 +822,7 @@ export class LearningEngine {
       }
       this.gameTargetSeq = seq;
       this.stage.setPromptNotes([]);
+      this.stage.setTranscribedNotes([]);
       this.replayGameEcho();
     }
 
@@ -673,59 +831,117 @@ export class LearningEngine {
 
   replayGameEcho() {
     if (this.mode !== 'game') return;
+
     if (this.gameKind === 'sight') {
-      // Play the target note gently as an audio clue
       const target = this.gameTargetSeq[0];
       if (target != null) {
         this.audio.noteOn(target, 0.72);
-        const t = setTimeout(() => this.audio.noteOff(target), 550);
+        const t = setTimeout(() => this.audio.noteOff(target), 600);
         this._gameTimers.push(t);
       }
       return;
     }
 
+    if (this.gameKind === 'chords') {
+      this._clearGameTimers();
+      this.gameChordTargets.forEach((m, i) => {
+        const t1 = setTimeout(() => this.audio.noteOn(m, 0.70), i * 85);
+        const t2 = setTimeout(() => this.audio.noteOff(m), 950 + i * 40);
+        this._gameTimers.push(t1, t2);
+      });
+      return;
+    }
+
+    if (this.gameKind === 'intervals') {
+      this._clearGameTimers();
+      this.gameBusy = true;
+      const a = this.gameAnchorMidi;
+      const b = this.gameTargetSeq[0];
+      const anchorInfo = midiToNoteInfo(a);
+      this.stage.showNote(`Anchor: ${anchorInfo.fullName} — listen for the second pitch`, 'warm', 3.0);
+
+      const t1 = setTimeout(() => {
+        this.audio.noteOn(a, 0.75);
+        this.keyboard.setExternalActive(a, true);
+      }, 180);
+      const t2 = setTimeout(() => {
+        this.audio.noteOff(a);
+        this.keyboard.setExternalActive(a, false);
+      }, 620);
+      const t3 = setTimeout(() => {
+        this.audio.noteOn(b, 0.78);
+      }, 720);
+      const t4 = setTimeout(() => {
+        this.audio.noteOff(b);
+        this.gameBusy = false;
+        this.stage.showNote(`Play the interval above ${anchorInfo.fullName}`, 'warm', 3.0);
+        this._emit();
+      }, 1300);
+      this._gameTimers.push(t1, t2, t3, t4);
+      this._emit();
+      return;
+    }
+
+    // Melodic Echo
     this._clearGameTimers();
     this.gameBusy = true;
     this.gameInputIdx = 0;
-    this.stage.owlSay(`Listen closely... (${this.gameTargetSeq.length} notes) 🎵`, 'singing', 2.8);
+    this.stage.setTranscribedNotes([]);
+    this.stage.showNote(`Listen to the ${this.gameTargetSeq.length}-note phrase…`, 'warm', 2.8);
     this._emit();
 
-    const stepMs = 480;
+    const stepMs = 460;
     this.gameTargetSeq.forEach((midi, idx) => {
       const tOn = setTimeout(() => {
-        this.audio.noteOn(midi, 0.76);
-        // Only reveal visual fireflies in Easy mode on first note to anchor the pitch!
+        this.audio.noteOn(midi, 0.75);
         if (this.gameDifficulty === 'easy' && idx === 0) {
           this.keyboard.setExternalActive(midi, true);
         }
-        this.stage.owl.hopVel = -100;
-        this.stage.owl.wingFlap = 0.55;
-      }, 280 + idx * stepMs);
+      }, 240 + idx * stepMs);
 
       const tOff = setTimeout(() => {
         this.audio.noteOff(midi);
         this.keyboard.setExternalActive(midi, false);
-      }, 280 + idx * stepMs + 340);
+      }, 240 + idx * stepMs + 340);
 
       this._gameTimers.push(tOn, tOff);
     });
 
     const readyTimer = setTimeout(() => {
       this.gameBusy = false;
-      this.stage.owlSay('Your turn! Echo the melody back ♪', 'curious', 3.0);
+      this.stage.showNote('Echo the phrase back — each note engraves onto the staff', 'warm', 3.2);
       this._emit();
-    }, 340 + this.gameTargetSeq.length * stepMs);
+    }, 300 + this.gameTargetSeq.length * stepMs);
     this._gameTimers.push(readyTimer);
   }
 
   showGameHint() {
-    if (this.mode !== 'game' || this.gameTargetSeq.length === 0) return;
+    if (this.mode !== 'game') return;
+
+    if (this.gameKind === 'chords') {
+      const remaining = this.gameChordTargets.filter((m) => !this.gameChordHit.has(m));
+      if (remaining.length === 0) return;
+      this.keyboard.setTargets(remaining.map((midi) => ({ midi })));
+      this.stage.showNote(`Chord: ${this.gameChordName}`, 'amber', 2.4);
+      const t = setTimeout(() => {
+        if (this.mode === 'game') this.keyboard.setTargets([]);
+      }, 1800);
+      this._gameTimers.push(t);
+      return;
+    }
+
     const expected = this.gameTargetSeq[this.gameInputIdx];
     if (expected == null) return;
-    const info = midiToNoteInfo(expected);
-
+    const info = midiToNoteInfo(expected, this.stage.preferFlats);
     this.keyboard.setTargets([{ midi: expected }]);
-    this.stage.owlSay(`Psst... try ${info.fullName}! ✨`, 'happy', 2.2);
+
+    if (this.gameKind === 'intervals' && this.gameAnchorMidi != null) {
+      const diff = Math.abs(expected - this.gameAnchorMidi) % 12;
+      const ivName = expected - this.gameAnchorMidi === 12 ? 'Octave' : INTERVAL_INFO[diff]?.name || '';
+      this.stage.showNote(`Hint: ${ivName} (${info.fullName})`, 'amber', 2.4);
+    } else {
+      this.stage.showNote(`Hint: ${info.fullName}`, 'amber', 2.2);
+    }
 
     const t = setTimeout(() => {
       if (this.mode === 'game') this.keyboard.setTargets([]);
@@ -734,59 +950,120 @@ export class LearningEngine {
   }
 
   _handleGameInput(midi) {
+    // 1. Chord Sight-Reading
+    if (this.gameKind === 'chords') {
+      if (this.gameChordTargets.includes(midi)) {
+        this.gameChordHit.add(midi);
+        this.stage.setPromptNotes(
+          this.gameChordTargets.map((m) => ({
+            midi: m,
+            state: this.gameChordHit.has(m) ? 'correct' : 'waiting',
+            stacked: true,
+          }))
+        );
+
+        if (this.gameChordTargets.every((m) => this.gameChordHit.has(m))) {
+          this.gameBusy = true;
+          this.gameSolved++;
+          this.gameAttempts++;
+          this.gameStreak++;
+          this._recordBest();
+          this.keyboard.setTargets([]);
+          this.stage.showNote(`${this.gameChordName} — clean voicing`, 'sage', 2.2);
+          this._emit();
+          const nextT = setTimeout(() => {
+            if (this.mode === 'game') this.startGameRound();
+          }, 1150);
+          this._gameTimers.push(nextT);
+        }
+      } else {
+        this.gameAttempts++;
+        this.gameStreak = 0;
+        this.audio.playSoftNudge();
+        this.stage.showNote(`${midiToNoteInfo(midi, this.stage.preferFlats).fullName} is outside this chord`, 'rose', 2.0);
+        this._emit();
+      }
+      return;
+    }
+
+    // 2. Single-Note Sight / Ear Interval / Melodic Echo
     const expected = this.gameTargetSeq[this.gameInputIdx];
+    if (expected == null) return;
+
     if (midi === expected) {
       this.keyboard.setTargets([]);
       this.gameInputIdx++;
 
       if (this.gameKind === 'sight') {
-        this.stage.setPromptNotes([{ midi: expected, state: 'correct' }]);
+        const curPrompt = this.stage.promptNotes[0] || {};
+        this.stage.setPromptNotes([{ ...curPrompt, midi: expected, state: 'correct' }]);
+      } else if (this.gameKind === 'intervals') {
+        this.stage.setPromptNotes([
+          { midi: this.gameAnchorMidi, state: 'anchor' },
+          { midi: expected, state: 'correct' },
+        ]);
+      } else if (this.gameKind === 'echo') {
+        this.stage.setTranscribedNotes(
+          this.gameTargetSeq.slice(0, this.gameInputIdx).map((m) => ({ midi: m }))
+        );
       }
 
       if (this.gameInputIdx >= this.gameTargetSeq.length) {
-        // Round Won!
         this.gameBusy = true;
+        this.gameSolved++;
+        this.gameAttempts++;
         this.gameStreak++;
-        if (this.gameStreak > this.gameBest) {
-          this.gameBest = this.gameStreak;
-          localStorage.setItem('starlight_game_best', String(this.gameBest));
-        }
+        this._recordBest();
 
-        const cheers = ['✨ Spot on!', '🌟 Musical magic!', '🎵 You caught the firefly!', '🦉 Bravo!'];
-        const msg = cheers[this.gameStreak % cheers.length];
-        this.stage.owlSay(`${msg} Streak: ${this.gameStreak}`, 'celebrate', 2.0);
-        if (this.gameStreak % 5 === 0) {
-          this.stage.celebrateBurst(`🌟 ${this.gameStreak} Streak!`);
+        let msg = `${midiToNoteInfo(expected, this.stage.preferFlats).fullName} — accurate`;
+        if (this.gameKind === 'intervals' && this.gameAnchorMidi != null) {
+          const diff = expected - this.gameAnchorMidi;
+          const ivName = diff === 12 ? 'Perfect Octave' : INTERVAL_INFO[diff % 12]?.name || 'Interval';
+          msg = `${ivName} (${midiToNoteInfo(this.gameAnchorMidi).name} → ${midiToNoteInfo(expected).name})`;
+        } else if (this.gameKind === 'echo') {
+          msg = 'Phrase transcribed cleanly';
         }
+        this.stage.showNote(msg, 'sage', 2.2);
 
         this._emit();
         const nextT = setTimeout(() => {
           if (this.mode === 'game') this.startGameRound();
-        }, 950);
+        }, 1050);
         this._gameTimers.push(nextT);
       } else {
         this._emit();
       }
     } else {
-      // Gentle try-again feedback
+      this.gameAttempts++;
       this.gameStreak = 0;
       this.audio.playSoftNudge();
+      const dir = midi < expected ? 'higher' : 'lower';
+
       if (this.gameKind === 'sight') {
-        this.stage.setPromptNotes([{ midi: expected, state: 'wrong' }]);
+        const curPrompt = this.stage.promptNotes[0] || {};
+        this.stage.setPromptNotes([{ ...curPrompt, midi: expected, state: 'wrong' }]);
         const t = setTimeout(() => {
           if (this.mode === 'game') {
-            this.stage.setPromptNotes([{ midi: expected, state: 'waiting' }]);
+            this.stage.setPromptNotes([{ ...curPrompt, midi: expected, state: 'waiting' }]);
           }
         }, 420);
         this._gameTimers.push(t);
-        const dir = midi < expected ? 'higher' : 'lower';
-        this.stage.owlSay(`Close! Try a little ${dir} ♪`, 'curious', 2.2);
+        this.stage.showNote(`Close — try a little ${dir}`, 'amber', 2.2);
+      } else if (this.gameKind === 'intervals') {
+        this.stage.showNote(`Target pitch is ${dir} — press Replay to hear the interval again`, 'amber', 2.4);
       } else {
         this.gameInputIdx = 0;
-        const dir = midi < expected ? 'higher' : 'lower';
-        this.stage.owlSay(`Almost! That note is ${dir} — tap Replay anytime`, 'curious', 2.5);
+        this.stage.setTranscribedNotes([]);
+        this.stage.showNote(`That note sits ${dir} — restart phrase or tap Replay`, 'amber', 2.5);
       }
       this._emit();
+    }
+  }
+
+  _recordBest() {
+    if (this.gameStreak > this.gameBest) {
+      this.gameBest = this.gameStreak;
+      localStorage.setItem('nocturne_sight_best', String(this.gameBest));
     }
   }
 

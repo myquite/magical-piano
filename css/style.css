@@ -1,30 +1,32 @@
 /* ============================================================================
-   Starlight Keys — Storybook Enchanted Conservatory Stylesheet
-   Crafted for Desktop, iPad, and iPhone (Portrait & Landscape)
+   Nocturne Keys — Midnight Jazz & Lo-Fi Piano Atelier Stylesheet
+   Warm editorial serif typography, amber lamplight, smoked glass, walnut &
+   antique brass console. Crafted for Desktop, iPad, and iPhone.
    ============================================================================ */
 
 :root {
-  --bg-deep: #120f26;
-  --bg-mid: #1c173d;
-  --glass: rgba(25, 21, 56, 0.72);
-  --glass-strong: rgba(20, 16, 46, 0.88);
-  --border-soft: rgba(255, 240, 198, 0.16);
-  --border-gold: rgba(255, 224, 130, 0.36);
+  --bg-deep: #0f111a;
+  --bg-mid: #171a28;
+  --glass: rgba(18, 20, 31, 0.78);
+  --glass-strong: rgba(15, 17, 27, 0.92);
+  --border-soft: rgba(245, 235, 214, 0.14);
+  --border-amber: rgba(232, 184, 109, 0.36);
 
-  --text-main: #fff9ec;
-  --text-muted: rgba(235, 226, 255, 0.72);
-  --accent-gold: #ffe066;
-  --accent-mint: #5eead4;
-  --accent-coral: #ff6b7a;
-  --accent-lavender: #b794f6;
+  --text-main: #f5ebd6;
+  --text-muted: rgba(235, 224, 206, 0.64);
+  --accent-amber: #e8b86d;
+  --accent-sage: #7cc4a9;
+  --accent-rose: #e07a7a;
+  --accent-dusk: #76a5d6;
 
-  --wood-dark: #2a1814;
-  --wood-mid: #43261e;
-  --wood-highlight: #5d362a;
-  --brass: linear-gradient(90deg, #a67c37, #f5d887, #c29546, #ffe8a3, #9e7331);
+  --wood-dark: #211512;
+  --wood-mid: #35211b;
+  --wood-highlight: #492f26;
+  --brass: linear-gradient(90deg, #8e6c38, #d8b573, #a68042, #e5c689, #866532);
 
-  --font-display: 'Fredoka', -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'Segoe UI', sans-serif;
-  --font-body: 'Quicksand', -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -64,11 +66,11 @@ body {
   padding-top: var(--safe-top);
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
-  background: radial-gradient(circle at 50% 0%, #241d4d 0%, var(--bg-deep) 65%);
+  background: radial-gradient(circle at 75% 0%, #23202e 0%, var(--bg-deep) 68%);
 }
 
 /* ============================================================================
-   TOP STUDIO BAR
+   TOP ATELIER BAR
    ============================================================================ */
 .top-bar {
   flex: 0 0 auto;
@@ -77,48 +79,39 @@ body {
   justify-content: space-between;
   gap: 10px;
   padding: 8px 14px;
-  background: rgba(16, 13, 36, 0.85);
+  background: rgba(14, 15, 24, 0.88);
   border-bottom: 1px solid var(--border-soft);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   z-index: 20;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
-.brand-star {
-  font-size: 1.25rem;
-  color: var(--accent-gold);
-  text-shadow: 0 0 12px rgba(255, 224, 102, 0.75);
-  animation: gentleTwinkle 3.2s ease-in-out infinite;
-}
-
-@keyframes gentleTwinkle {
-  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
-  50% { transform: scale(1.16) rotate(12deg); opacity: 1; }
+.brand-glyph {
+  font-size: 1.05rem;
+  color: var(--accent-amber);
+  text-shadow: 0 0 12px rgba(232, 184, 109, 0.55);
 }
 
 .brand-title {
   font-family: var(--font-display);
   font-size: 1.12rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.01em;
-  background: linear-gradient(120deg, #fff8dc 10%, #ffe066 55%, #c4b5fd 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--text-main);
 }
 
 .mode-tabs {
   display: flex;
   align-items: center;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.05);
+  gap: 3px;
+  background: rgba(245, 235, 214, 0.04);
   padding: 3px;
   border-radius: 999px;
   border: 1px solid var(--border-soft);
@@ -135,24 +128,35 @@ body {
   background: transparent;
   color: var(--text-muted);
   font-family: var(--font-body);
-  font-size: 0.84rem;
-  font-weight: 700;
-  padding: 7px 13px;
+  font-size: 0.81rem;
+  font-weight: 600;
+  padding: 6px 13px;
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.tab-glyph {
+  font-family: Georgia, serif;
+  font-size: 0.96rem;
+  opacity: 0.85;
 }
 
 .mode-tab:hover {
   color: var(--text-main);
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(245, 235, 214, 0.06);
 }
 
 .mode-tab.active {
-  background: linear-gradient(135deg, rgba(167, 139, 250, 0.34), rgba(255, 224, 102, 0.24));
-  color: #fffdf5;
-  box-shadow: inset 0 0 0 1px rgba(255, 232, 163, 0.38), 0 2px 10px rgba(0, 0, 0, 0.25);
+  background: rgba(232, 184, 109, 0.18);
+  color: #fff8ea;
+  box-shadow: inset 0 0 0 1px rgba(232, 184, 109, 0.38);
+}
+
+.mode-tab.active .tab-glyph {
+  color: var(--accent-amber);
+  opacity: 1;
 }
 
 .top-actions {
@@ -167,17 +171,17 @@ body {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(245, 235, 214, 0.06);
   color: var(--text-main);
   border: 1px solid var(--border-soft);
   border-radius: 999px;
   padding: 7px 28px 7px 12px;
   font-family: var(--font-body);
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
   outline: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23ffe8a3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M3 4.5L6 7.5l3-3'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23e8b86d' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round' d='M3 4.5L6 7.5l3-3'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
   transition: border-color 0.15s ease, background-color 0.15s ease;
@@ -190,19 +194,19 @@ body {
 
 .voice-picker select:hover,
 .glass-select:hover {
-  border-color: var(--border-gold);
-  background-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-amber);
+  background-color: rgba(245, 235, 214, 0.10);
 }
 
 .voice-picker select option,
 .glass-select option {
-  background: #1d1840;
-  color: #fff9ec;
+  background: #181a28;
+  color: #f5ebd6;
 }
 
 .glass-select.compact {
   padding-left: 10px;
-  padding-right: 22px;
+  padding-right: 24px;
 }
 
 .icon-pill {
@@ -210,58 +214,95 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 34px;
-  min-width: 34px;
+  height: 33px;
+  min-width: 33px;
   padding: 0 10px;
   border-radius: 999px;
   border: 1px solid var(--border-soft);
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(245, 235, 214, 0.06);
   color: var(--text-main);
-  font-family: var(--font-body);
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 0.77rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.16s ease;
 }
 
 .icon-pill:hover {
-  border-color: var(--border-gold);
-  background: rgba(255, 255, 255, 0.13);
+  border-color: var(--border-amber);
+  background: rgba(245, 235, 214, 0.11);
 }
 
 .icon-pill.active {
-  background: rgba(255, 224, 102, 0.2);
-  border-color: var(--accent-gold);
-  color: var(--accent-gold);
+  background: rgba(232, 184, 109, 0.18);
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+}
+
+/* Lo-Fi Vinyl Ambience Pill */
+.vinyl-pill {
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+}
+
+.vinyl-disc {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(245, 235, 214, 0.55);
+  background: radial-gradient(circle, rgba(232, 184, 109, 0.75) 0 2px, transparent 2.5px);
+  position: relative;
+}
+
+.vinyl-pill.active .vinyl-disc {
+  border-color: var(--accent-amber);
+  box-shadow: 0 0 8px rgba(232, 184, 109, 0.5);
+  animation: vinylSpin 2.6s linear infinite;
+}
+
+.vinyl-pill.active .vinyl-disc::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 50%;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #fff8ea;
+}
+
+@keyframes vinylSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .metro-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: rgba(255, 240, 198, 0.45);
+  background: rgba(245, 235, 214, 0.42);
   transition: transform 0.08s ease, background 0.08s ease, box-shadow 0.08s ease;
 }
 
 .metro-dot.beat-on {
-  background: var(--accent-gold);
-  transform: scale(1.45);
-  box-shadow: 0 0 10px var(--accent-gold);
+  background: var(--accent-amber);
+  transform: scale(1.4);
+  box-shadow: 0 0 9px var(--accent-amber);
 }
 
 .metro-dot.beat-accent {
-  background: var(--accent-mint);
-  transform: scale(1.7);
-  box-shadow: 0 0 12px var(--accent-mint);
+  background: var(--accent-sage);
+  transform: scale(1.65);
+  box-shadow: 0 0 11px var(--accent-sage);
 }
 
 /* ============================================================================
-   ENCHANTED STAGE & FLOATING RIBBON
+   MIDNIGHT STAGE & FLOATING RIBBON
    ============================================================================ */
 .stage-area {
   position: relative;
   flex: 1 1 auto;
-  min-height: 110px;
+  min-height: 120px;
   overflow: hidden;
   touch-action: none;
 }
@@ -306,11 +347,11 @@ body {
   flex-wrap: wrap;
   gap: 7px;
   padding: 6px 10px;
-  border-radius: 14px;
+  border-radius: 13px;
   background: var(--glass);
   border: 1px solid var(--border-soft);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .harmony-badge {
@@ -318,20 +359,20 @@ body {
   align-items: center;
   gap: 10px;
   padding: 7px 14px;
-  border-radius: 14px;
+  border-radius: 13px;
   background: var(--glass);
   border: 1px solid var(--border-soft);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   max-width: 100%;
 }
 
 .harmony-dot {
-  width: 11px;
-  height: 11px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: var(--accent-gold);
-  box-shadow: 0 0 12px var(--accent-gold);
+  background: var(--accent-amber);
+  box-shadow: 0 0 10px rgba(232, 184, 109, 0.7);
   flex-shrink: 0;
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
@@ -339,7 +380,7 @@ body {
 .harmony-text {
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  line-height: 1.22;
 }
 
 .harmony-text strong {
@@ -350,7 +391,7 @@ body {
 }
 
 .harmony-text span {
-  font-size: 0.74rem;
+  font-size: 0.73rem;
   color: var(--text-muted);
 }
 
@@ -365,12 +406,12 @@ body {
   align-items: center;
   gap: 6px;
   border: 1px solid var(--border-soft);
-  background: rgba(31, 25, 68, 0.8);
+  background: rgba(24, 26, 39, 0.82);
   color: var(--text-main);
   font-family: var(--font-body);
-  font-size: 0.8rem;
-  font-weight: 700;
-  padding: 7px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
@@ -378,38 +419,38 @@ body {
 }
 
 .pill-btn:hover:not(:disabled) {
-  border-color: var(--border-gold);
-  background: rgba(52, 42, 105, 0.9);
-  transform: translateY(-1px);
+  border-color: var(--border-amber);
+  background: rgba(38, 40, 58, 0.92);
 }
 
 .pill-btn:disabled {
-  opacity: 0.42;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .pill-btn.primary {
-  background: linear-gradient(135deg, #7c5dfa, #a864fd);
-  border-color: rgba(255, 236, 179, 0.4);
-  color: #fff;
-  box-shadow: 0 3px 12px rgba(124, 93, 250, 0.42);
+  background: linear-gradient(135deg, #c99244, #e2b268);
+  border-color: rgba(255, 240, 210, 0.35);
+  color: #16131c;
+  font-weight: 700;
+  box-shadow: 0 2px 12px rgba(214, 158, 76, 0.30);
 }
 
 .pill-btn.primary:hover {
-  background: linear-gradient(135deg, #8c6eff, #b777ff);
+  background: linear-gradient(135deg, #d79f50, #edc179);
 }
 
 .pill-btn.recording {
-  background: rgba(255, 107, 122, 0.25);
-  border-color: var(--accent-coral);
-  color: #ffd5da;
+  background: rgba(224, 122, 122, 0.22);
+  border-color: var(--accent-rose);
+  color: #ffdada;
 }
 
 .rec-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--accent-coral);
+  background: var(--accent-rose);
 }
 
 .pill-btn.recording .rec-dot {
@@ -425,7 +466,7 @@ body {
   display: inline-flex;
   padding: 2px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(245, 235, 214, 0.05);
   border: 1px solid var(--border-soft);
 }
 
@@ -443,19 +484,23 @@ body {
   background: transparent;
   color: var(--text-muted);
   font-family: var(--font-body);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 600;
   padding: 5px 10px;
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s ease;
+  transition: all 0.14s ease;
+}
+
+.seg-btn:hover {
+  color: var(--text-main);
 }
 
 .seg-btn.active {
-  background: rgba(255, 224, 102, 0.24);
-  color: #fff8dc;
-  box-shadow: inset 0 0 0 1px rgba(255, 224, 102, 0.45);
+  background: rgba(232, 184, 109, 0.22);
+  color: #fff8ea;
+  box-shadow: inset 0 0 0 1px rgba(232, 184, 109, 0.42);
 }
 
 .speed-chip {
@@ -464,49 +509,52 @@ body {
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(245, 235, 214, 0.05);
   border: 1px solid var(--border-soft);
-  font-size: 0.76rem;
-  font-weight: 700;
-  color: var(--accent-gold);
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--accent-amber);
 }
 
 .speed-chip input[type="range"] {
-  width: 64px;
-  accent-color: var(--accent-gold);
+  width: 58px;
+  accent-color: var(--accent-amber);
   cursor: pointer;
 }
 
 .stat-pill {
-  padding: 5px 11px;
+  padding: 5px 10px;
   border-radius: 999px;
-  background: rgba(94, 234, 212, 0.14);
-  border: 1px solid rgba(94, 234, 212, 0.35);
-  color: var(--accent-mint);
-  font-size: 0.78rem;
-  font-weight: 700;
+  background: rgba(124, 196, 169, 0.12);
+  border: 1px solid rgba(124, 196, 169, 0.32);
+  color: var(--accent-sage);
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  font-weight: 600;
   white-space: nowrap;
 }
 
-.stat-pill.gold {
-  background: rgba(255, 224, 102, 0.16);
-  border-color: rgba(255, 224, 102, 0.4);
-  color: var(--accent-gold);
+.stat-pill.amber {
+  background: rgba(232, 184, 109, 0.13);
+  border-color: rgba(232, 184, 109, 0.36);
+  color: var(--accent-amber);
 }
 
 .song-tip-bar {
   align-self: flex-start;
-  padding: 4px 11px;
+  padding: 4px 12px;
   border-radius: 10px;
-  background: rgba(20, 16, 46, 0.65);
-  border: 1px solid rgba(255, 236, 179, 0.14);
-  font-size: 0.75rem;
-  color: rgba(255, 248, 225, 0.85);
-  max-width: 680px;
+  background: rgba(16, 18, 28, 0.72);
+  border: 1px solid rgba(232, 184, 109, 0.16);
+  font-size: 0.74rem;
+  color: rgba(245, 235, 214, 0.82);
+  max-width: 760px;
 }
 
 .theory-mood {
-  font-size: 0.76rem;
+  font-size: 0.74rem;
+  font-style: italic;
   color: var(--text-muted);
   margin-left: 4px;
 }
@@ -528,11 +576,11 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-width: 54px;
-  padding: 6px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(25, 20, 56, 0.8);
+  min-width: 64px;
+  padding: 6px 11px;
+  border-radius: 11px;
+  border: 1px solid rgba(245, 235, 214, 0.15);
+  background: rgba(19, 21, 33, 0.84);
   color: var(--text-main);
   cursor: pointer;
   transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
@@ -540,28 +588,29 @@ body {
 }
 
 .chord-pad:hover {
-  transform: translateY(-2px);
-  border-color: var(--pad-color, var(--accent-gold));
+  transform: translateY(-1px);
+  border-color: var(--accent-amber);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 
 .chord-pad.active {
-  background: color-mix(in srgb, var(--pad-color, #ffe066) 24%, rgba(25, 20, 56, 0.9));
-  border-color: var(--pad-color, var(--accent-gold));
-  box-shadow: 0 0 14px color-mix(in srgb, var(--pad-color, #ffe066) 50%, transparent);
+  background: rgba(232, 184, 109, 0.18);
+  border-color: var(--accent-amber);
+  box-shadow: 0 0 14px rgba(232, 184, 109, 0.28);
 }
 
 .chord-pad .pad-roman {
-  font-size: 0.66rem;
-  font-weight: 700;
-  color: var(--pad-color, var(--accent-gold));
-  opacity: 0.92;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--accent-amber);
+  opacity: 0.9;
 }
 
 .chord-pad .pad-symbol {
   font-family: var(--font-display);
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 0.88rem;
+  font-weight: 600;
 }
 
 .audio-hint {
@@ -571,13 +620,13 @@ body {
   transform: translateX(-50%);
   padding: 7px 16px;
   border-radius: 999px;
-  background: rgba(255, 232, 163, 0.94);
-  color: #201742;
-  font-family: var(--font-display);
-  font-size: 0.82rem;
-  font-weight: 600;
+  background: rgba(232, 184, 109, 0.94);
+  color: #16131c;
+  font-family: var(--font-body);
+  font-size: 0.79rem;
+  font-weight: 700;
   white-space: nowrap;
-  box-shadow: 0 4px 20px rgba(255, 224, 102, 0.45);
+  box-shadow: 0 4px 20px rgba(232, 184, 109, 0.35);
   pointer-events: none;
   z-index: 15;
   transition: opacity 0.35s ease, transform 0.35s ease;
@@ -589,16 +638,16 @@ body {
 }
 
 /* ============================================================================
-   KEYBOARD CONSOLE (WALNUT RAIL + TACTILE IVORY/EBONY KEYS)
+   KEYBOARD CONSOLE (ROASTED WALNUT RAIL + TACTILE IVORY / EBONY KEYS)
    ============================================================================ */
 .keyboard-console {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  height: clamp(210px, 44dvh, 360px);
+  height: clamp(210px, 43dvh, 350px);
   padding-bottom: var(--safe-bottom);
-  background: linear-gradient(180deg, #321d17 0%, #1b100e 100%);
-  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.55);
+  background: linear-gradient(180deg, #271814 0%, #160e0d 100%);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.6);
   z-index: 15;
 }
 
@@ -610,8 +659,8 @@ body {
   gap: 10px;
   padding: 7px 14px;
   background: linear-gradient(180deg, var(--wood-highlight) 0%, var(--wood-mid) 45%, var(--wood-dark) 100%);
-  border-top: 1px solid rgba(255, 224, 150, 0.25);
-  border-bottom: 3px solid transparent;
+  border-top: 1px solid rgba(232, 184, 109, 0.22);
+  border-bottom: 2.5px solid transparent;
   border-image: var(--brass) 1;
 }
 
@@ -625,11 +674,11 @@ body {
 .rail-btn {
   width: 30px;
   height: 28px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 224, 150, 0.32);
-  background: rgba(0, 0, 0, 0.28);
-  color: #ffe8a3;
-  font-size: 1.15rem;
+  border-radius: 7px;
+  border: 1px solid rgba(232, 184, 109, 0.28);
+  background: rgba(0, 0, 0, 0.32);
+  color: #f0d7a6;
+  font-size: 1.12rem;
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
@@ -640,17 +689,17 @@ body {
 }
 
 .rail-btn:hover {
-  background: rgba(255, 224, 150, 0.16);
+  background: rgba(232, 184, 109, 0.16);
 }
 .rail-btn:active {
   transform: scale(0.94);
 }
 
 .range-label {
-  font-family: var(--font-display);
-  font-size: 0.84rem;
-  color: #fce8b2;
-  min-width: 62px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: #f0d7a6;
+  min-width: 64px;
   text-align: center;
   letter-spacing: 0.02em;
 }
@@ -662,12 +711,12 @@ body {
   border-radius: 5px;
   background: repeating-linear-gradient(
     90deg,
-    rgba(255, 250, 235, 0.18) 0px,
-    rgba(255, 250, 235, 0.18) 4px,
-    rgba(0, 0, 0, 0.25) 4px,
-    rgba(0, 0, 0, 0.25) 5px
+    rgba(245, 235, 214, 0.15) 0px,
+    rgba(245, 235, 214, 0.15) 4px,
+    rgba(0, 0, 0, 0.28) 4px,
+    rgba(0, 0, 0, 0.28) 5px
   );
-  border: 1px solid rgba(255, 224, 150, 0.26);
+  border: 1px solid rgba(232, 184, 109, 0.24);
   cursor: grab;
   touch-action: none;
   overflow: hidden;
@@ -675,7 +724,7 @@ body {
 
 .mini-range-bar.dragging {
   cursor: grabbing;
-  border-color: var(--accent-gold);
+  border-color: var(--accent-amber);
 }
 
 .mini-window {
@@ -683,8 +732,8 @@ body {
   top: 1px;
   bottom: 1px;
   border-radius: 4px;
-  background: linear-gradient(180deg, rgba(255, 224, 102, 0.78), rgba(244, 180, 65, 0.68));
-  box-shadow: 0 0 8px rgba(255, 224, 102, 0.55);
+  background: linear-gradient(180deg, rgba(232, 184, 109, 0.78), rgba(188, 136, 62, 0.68));
+  box-shadow: 0 0 8px rgba(232, 184, 109, 0.4);
   transition: left 0.14s ease, width 0.14s ease;
   pointer-events: none;
 }
@@ -694,10 +743,26 @@ body {
 }
 
 .rail-btn.flash-shift {
-  background: rgba(255, 224, 102, 0.42);
-  border-color: var(--accent-gold);
+  background: rgba(232, 184, 109, 0.40);
+  border-color: var(--accent-amber);
   color: #ffffff;
-  box-shadow: 0 0 14px rgba(255, 224, 102, 0.75);
+  box-shadow: 0 0 12px rgba(232, 184, 109, 0.65);
+}
+
+.midi-badge {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(124, 196, 169, 0.18);
+  border: 1px solid rgba(124, 196, 169, 0.45);
+  color: var(--accent-sage);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.midi-badge[hidden] {
+  display: none;
 }
 
 .rail-pill-btn {
@@ -706,27 +771,26 @@ body {
   gap: 5px;
   padding: 5px 11px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 224, 150, 0.3);
-  background: rgba(0, 0, 0, 0.28);
-  color: #f3dfb0;
+  border: 1px solid rgba(232, 184, 109, 0.28);
+  background: rgba(0, 0, 0, 0.30);
+  color: #eed6a7;
   font-family: var(--font-body);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 0.74rem;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.14s ease;
 }
 
 .rail-pill-btn:hover {
-  border-color: var(--border-gold);
-  background: rgba(255, 224, 150, 0.14);
+  border-color: var(--border-amber);
+  background: rgba(232, 184, 109, 0.14);
 }
 
 .rail-pill-btn.active {
-  background: linear-gradient(180deg, rgba(167, 139, 250, 0.42), rgba(108, 72, 200, 0.44));
-  border-color: #d8c4ff;
-  color: #ffffff;
-  box-shadow: 0 0 12px rgba(167, 139, 250, 0.48);
+  background: rgba(124, 196, 169, 0.24);
+  border-color: var(--accent-sage);
+  color: #f5ebd6;
 }
 
 .rail-pill-btn.suspended {
@@ -735,7 +799,8 @@ body {
 
 .speed-cycle-btn {
   display: none;
-  color: var(--accent-gold);
+  color: var(--accent-amber);
+  font-family: var(--font-mono);
   padding: 6px 10px;
 }
 
@@ -745,34 +810,34 @@ body {
   gap: 7px;
   padding: 5px 13px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 224, 150, 0.35);
-  background: linear-gradient(180deg, rgba(255, 230, 150, 0.14), rgba(0, 0, 0, 0.32));
-  color: #fce8b2;
+  border: 1px solid rgba(232, 184, 109, 0.32);
+  background: linear-gradient(180deg, rgba(232, 184, 109, 0.12), rgba(0, 0, 0, 0.34));
+  color: #f0d7a6;
   font-family: var(--font-body);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.76rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.14s ease;
 }
 
 .sustain-pedal .pedal-gem {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: rgba(255, 224, 150, 0.35);
+  background: rgba(232, 184, 109, 0.35);
   transition: all 0.14s ease;
 }
 
 .sustain-pedal.active {
-  background: linear-gradient(180deg, rgba(255, 224, 102, 0.36), rgba(217, 155, 38, 0.38));
-  border-color: var(--accent-gold);
-  color: #fffdf5;
-  box-shadow: 0 0 14px rgba(255, 224, 102, 0.45);
+  background: linear-gradient(180deg, rgba(232, 184, 109, 0.34), rgba(182, 130, 56, 0.36));
+  border-color: var(--accent-amber);
+  color: #fffaf0;
+  box-shadow: 0 0 12px rgba(232, 184, 109, 0.35);
 }
 
 .sustain-pedal.active .pedal-gem {
-  background: var(--accent-gold);
-  box-shadow: 0 0 10px var(--accent-gold);
+  background: var(--accent-amber);
+  box-shadow: 0 0 8px var(--accent-amber);
 }
 
 /* Piano Frame & Cheek Blocks */
@@ -781,13 +846,13 @@ body {
   display: flex;
   min-height: 0;
   padding: 0 0 6px;
-  background: #140d0c;
+  background: #120c0b;
 }
 
 .cheek-block {
   flex: 0 0 14px;
-  background: linear-gradient(90deg, #271511 0%, #4b2a20 55%, #23120e 100%);
-  box-shadow: inset 0 2px 6px rgba(255, 210, 160, 0.12);
+  background: linear-gradient(90deg, #1f120f 0%, #3d241c 55%, #1c100d 100%);
+  box-shadow: inset 0 2px 6px rgba(232, 184, 109, 0.10);
 }
 
 .piano-keyboard {
@@ -798,9 +863,8 @@ body {
   height: 100%;
   touch-action: none;
   overflow: hidden;
-  background: #120d18;
-  /* Red felt strip along the very top of the keys like a real grand piano! */
-  border-top: 3px solid #7d2232;
+  background: #110e14;
+  border-top: 3px solid #6b202b;
 }
 
 .keyboard-deck {
@@ -810,14 +874,13 @@ body {
   width: 100%;
 }
 
-/* Stacked 2-Row Manual Divider (GarageBand-inspired double deck!) */
 .piano-keyboard.dual-row {
   gap: 5px;
-  background: #241410;
+  background: #201310;
 }
 
 .piano-keyboard.dual-row .deck-lower {
-  border-top: 3px solid #7d2232;
+  border-top: 3px solid #6b202b;
 }
 
 .piano-keyboard.dual-row .white-key {
@@ -867,92 +930,96 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  font-family: var(--font-body);
+  font-family: var(--font-mono);
 }
 
-/* Sculpted Warm Ivory White Keys */
+/* Classic Sculpted Warm Ivory White Keys */
 .white-key {
   flex: 1 1 0;
   height: 100%;
-  border-radius: 0 0 9px 9px;
-  background: linear-gradient(180deg, #f3ede0 0%, #fffdf7 12%, #fffcf4 86%, #ede4d2 100%);
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(180deg, #ede5d6 0%, #f9f5eb 12%, #f7f1e3 86%, #e4d9c5 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -5px 0 rgba(206, 193, 170, 0.72),
-    0 4px 7px rgba(0, 0, 0, 0.35);
-  color: #463a5c;
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -5px 0 rgba(196, 182, 158, 0.72),
+    0 4px 7px rgba(0, 0, 0, 0.38);
+  color: #544940;
   padding-bottom: 14px;
   transition: transform 0.05s ease, box-shadow 0.06s ease, background 0.1s ease;
 }
 
 .white-key:hover {
-  background: linear-gradient(180deg, #faf5ea 0%, #ffffff 15%, #fffdf7 88%, #f2ead8 100%);
+  background: linear-gradient(180deg, #f4ede0 0%, #fdfaf3 15%, #faf5e9 88%, #eae0cd 100%);
 }
 
+/* When Harmonic Pitch Tint is enabled */
 .white-key.pressed,
 .white-key.demo-active {
   transform: translateY(3px);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--note-color) 28%, #fffdf7) 0%,
-    color-mix(in srgb, var(--note-color) 52%, #ffffff) 100%
+    color-mix(in srgb, var(--note-color) 24%, #faf5e9) 0%,
+    color-mix(in srgb, var(--note-color) 46%, #ffffff) 100%
   );
   box-shadow:
     inset 0 2px 6px rgba(0, 0, 0, 0.14),
-    inset 0 -2px 0 color-mix(in srgb, var(--note-color) 75%, #8a7c66),
-    0 0 18px var(--note-glow);
+    inset 0 -2px 0 color-mix(in srgb, var(--note-color) 70%, #8a7c66),
+    0 0 14px var(--note-glow);
 }
 
+/* Default Classic Ivory Press (Warm Amber Lamplight Halo) */
 .rainbow-off .white-key.pressed,
 .rainbow-off .white-key.demo-active {
-  background: linear-gradient(180deg, #ede5d4 0%, #f9f3e3 40%, #ffe9a8 100%);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.16), 0 0 14px rgba(255, 224, 102, 0.55);
+  background: linear-gradient(180deg, #e5dac5 0%, #f4ebd8 42%, #f0d7a6 100%);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.18),
+    inset 0 -2px 0 rgba(182, 134, 62, 0.65),
+    0 0 14px rgba(232, 184, 109, 0.45);
 }
 
-/* Soft Chroma Color Strip along bottom edge of white keys */
 .key-chroma-bar {
   position: absolute;
   bottom: 5px;
-  left: 16%;
-  right: 16%;
-  height: 4px;
+  left: 18%;
+  right: 18%;
+  height: 3.5px;
   border-radius: 99px;
   background: var(--note-color);
-  opacity: 0.62;
+  opacity: 0.6;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
 .white-key.pressed .key-chroma-bar,
 .white-key.demo-active .key-chroma-bar {
   opacity: 1;
-  transform: scaleX(1.12);
+  transform: scaleX(1.1);
 }
 
 .rainbow-off .key-chroma-bar {
-  opacity: 0;
+  display: none;
 }
 
-/* Beveled Satin Ebony Black Keys */
+/* Satin Ebony Black Keys */
 .black-key {
   position: absolute;
   top: 0;
   height: 100%;
   pointer-events: auto;
   z-index: 4;
-  border-radius: 0 0 7px 7px;
-  background: linear-gradient(180deg, #352f4a 0%, #1d192b 14%, #141120 82%, #29233d 100%);
+  border-radius: 0 0 6px 6px;
+  background: linear-gradient(180deg, #302d38 0%, #1b1922 14%, #121118 82%, #24212c 100%);
   box-shadow:
-    inset 2px 0 2px rgba(255, 255, 255, 0.1),
-    inset -2px 0 2px rgba(0, 0, 0, 0.55),
-    inset 0 -7px 0 #090710,
-    0 5px 10px rgba(0, 0, 0, 0.58);
-  color: rgba(255, 248, 225, 0.78);
+    inset 2px 0 2px rgba(255, 255, 255, 0.08),
+    inset -2px 0 2px rgba(0, 0, 0, 0.58),
+    inset 0 -7px 0 #08070c,
+    0 5px 10px rgba(0, 0, 0, 0.62);
+  color: rgba(245, 235, 214, 0.68);
   padding-bottom: 11px;
   transition: transform 0.05s ease, box-shadow 0.06s ease, background 0.1s ease;
 }
 
 .black-key:hover {
-  background: linear-gradient(180deg, #433b5c 0%, #262038 14%, #1a1629 82%, #342c4c 100%);
+  background: linear-gradient(180deg, #3c3846 0%, #23202c 14%, #18161f 82%, #2e2a38 100%);
 }
 
 .black-key.pressed,
@@ -960,52 +1027,55 @@ body {
   transform: translateY(3px);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--note-color) 42%, #201a33) 0%,
-    color-mix(in srgb, var(--note-color) 85%, #19142b) 100%
+    color-mix(in srgb, var(--note-color) 36%, #1d1a26) 0%,
+    color-mix(in srgb, var(--note-color) 76%, #16141f) 100%
   );
   box-shadow:
     inset 0 -2px 0 rgba(0, 0, 0, 0.45),
-    0 0 18px var(--note-glow);
-  color: #120f26;
+    0 0 14px var(--note-glow);
+  color: #121118;
 }
 
 .rainbow-off .black-key.pressed,
 .rainbow-off .black-key.demo-active {
-  background: linear-gradient(180deg, #4f466b 0%, #d4af37 100%);
-  color: #161229;
+  background: linear-gradient(180deg, #4b3e2e 0%, #c99a52 100%);
+  box-shadow:
+    inset 0 -2px 0 rgba(0, 0, 0, 0.45),
+    0 0 14px rgba(232, 184, 109, 0.45);
+  color: #16131c;
 }
 
 /* Key Labels */
 .key-label {
-  font-size: clamp(0.64rem, 1.3vw, 0.84rem);
-  font-weight: 700;
+  font-size: clamp(0.6rem, 1.15vw, 0.78rem);
+  font-weight: 600;
   line-height: 1;
   pointer-events: none;
   z-index: 2;
 }
 
 .white-key .key-label.is-c-note {
-  color: #7c3aed;
-  font-weight: 800;
+  color: #8f5c23;
+  font-weight: 700;
 }
 
 .black-key .key-label {
-  font-size: clamp(0.54rem, 0.95vw, 0.7rem);
-  opacity: 0.85;
+  font-size: clamp(0.52rem, 0.9vw, 0.66rem);
+  opacity: 0.78;
 }
 
-/* Scale Guide Dots & Root Stars */
+/* Scale Guide Dots & Root Diamond */
 .key-scale-dot {
   display: none;
   align-items: center;
   justify-content: center;
-  width: 11px;
-  height: 11px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: var(--note-color);
-  box-shadow: 0 0 8px var(--note-glow);
+  background: var(--accent-sage);
+  box-shadow: 0 0 7px rgba(124, 196, 169, 0.55);
   margin-bottom: 6px;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   line-height: 1;
   pointer-events: none;
 }
@@ -1015,33 +1085,33 @@ body {
 }
 
 .piano-key.is-scale-root .key-scale-dot {
-  width: 20px;
-  height: 20px;
-  background: #ffe066;
-  color: #261b47;
-  box-shadow: 0 0 12px rgba(255, 224, 102, 0.85);
+  width: 18px;
+  height: 18px;
+  background: var(--accent-amber);
+  color: #19151d;
+  box-shadow: 0 0 10px rgba(232, 184, 109, 0.7);
 }
 
 .piano-key.out-of-scale:not(.pressed):not(.is-target) {
-  filter: saturate(0.4) brightness(0.92);
+  filter: saturate(0.45) brightness(0.92);
 }
 
 /* Chord Highlight */
 .piano-key.chord-highlight:not(.pressed) {
-  box-shadow: inset 0 0 0 3px var(--note-color), 0 0 16px var(--note-glow);
+  box-shadow: inset 0 0 0 3px var(--accent-amber), 0 0 14px rgba(232, 184, 109, 0.45);
 }
 
 /* Guided Target Key Beacon & Piano Finger Badge */
 .piano-key.is-target:not(.pressed) {
-  animation: targetPulse 1.15s ease-in-out infinite;
+  animation: targetGlow 1.5s ease-in-out infinite;
 }
 
-@keyframes targetPulse {
+@keyframes targetGlow {
   0%, 100% {
-    box-shadow: inset 0 0 0 3px #ffe066, 0 0 14px rgba(255, 224, 102, 0.75);
+    box-shadow: inset 0 0 0 2.5px rgba(232, 184, 109, 0.85), 0 0 12px rgba(232, 184, 109, 0.42);
   }
   50% {
-    box-shadow: inset 0 0 0 4px var(--note-color), 0 0 24px var(--note-glow);
+    box-shadow: inset 0 0 0 3.5px #f5d494, 0 0 20px rgba(232, 184, 109, 0.72);
   }
 }
 
@@ -1049,34 +1119,28 @@ body {
   display: none;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ffe066, #ffb347);
-  color: #1f173d;
-  font-family: var(--font-display);
-  font-size: 0.82rem;
+  background: linear-gradient(135deg, #ecc275, #c99244);
+  color: #17141d;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
   font-weight: 700;
-  box-shadow: 0 2px 10px rgba(255, 200, 75, 0.75);
+  box-shadow: 0 2px 8px rgba(201, 146, 68, 0.55);
   margin-bottom: 6px;
   z-index: 3;
   pointer-events: none;
-  animation: popBounce 0.9s ease-in-out infinite alternate;
 }
 
 .black-key .key-finger-badge {
-  width: 20px;
-  height: 20px;
-  font-size: 0.72rem;
+  width: 19px;
+  height: 19px;
+  font-size: 0.68rem;
 }
 
 .key-finger-badge.visible {
   display: inline-flex;
-}
-
-@keyframes popBounce {
-  from { transform: translateY(0); }
-  to { transform: translateY(-4px); }
 }
 
 /* ============================================================================
@@ -1085,9 +1149,9 @@ body {
 .settings-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(10, 8, 24, 0.65);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(9, 10, 16, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1104,10 +1168,10 @@ body {
   max-height: 88dvh;
   display: flex;
   flex-direction: column;
-  border-radius: 22px;
-  background: linear-gradient(180deg, #241d4d 0%, #171333 100%);
-  border: 1px solid var(--border-gold);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #1b1e2d 0%, #12141f 100%);
+  border: 1px solid var(--border-amber);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.68);
   overflow: hidden;
 }
 
@@ -1122,18 +1186,19 @@ body {
 .drawer-header h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.15rem;
-  color: var(--accent-gold);
+  font-size: 1.12rem;
+  font-weight: 600;
+  color: var(--accent-amber);
 }
 
 .close-btn {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: 1px solid var(--border-soft);
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(245, 235, 214, 0.06);
   color: var(--text-main);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   cursor: pointer;
 }
 
@@ -1153,8 +1218,8 @@ body {
 
 .setting-label,
 .setting-label-row {
-  font-size: 0.84rem;
-  font-weight: 700;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-main);
 }
 
@@ -1168,14 +1233,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.86rem;
-  font-weight: 700;
-  padding: 4px 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 3px 0;
 }
 
 .range-input {
   width: 100%;
-  accent-color: var(--accent-gold);
+  accent-color: var(--accent-amber);
   cursor: pointer;
 }
 
@@ -1183,8 +1248,8 @@ body {
 .switch {
   position: relative;
   display: inline-block;
-  width: 46px;
-  height: 26px;
+  width: 44px;
+  height: 24px;
 }
 .switch input {
   opacity: 0;
@@ -1195,7 +1260,7 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(245, 235, 214, 0.14);
   border: 1px solid var(--border-soft);
   cursor: pointer;
   transition: background 0.2s ease;
@@ -1205,14 +1270,14 @@ body {
   position: absolute;
   left: 3px;
   top: 2px;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  background: #fff8e1;
+  background: #f5ebd6;
   transition: transform 0.2s ease;
 }
 .switch input:checked + .slider {
-  background: linear-gradient(135deg, #8b5cf6, #f472b6);
+  background: linear-gradient(135deg, #c99244, #e2b268);
 }
 .switch input:checked + .slider::before {
   transform: translateX(19px);
@@ -1220,8 +1285,8 @@ body {
 
 .shortcuts-card {
   padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  background: rgba(245, 235, 214, 0.04);
   border: 1px solid var(--border-soft);
 }
 
@@ -1229,42 +1294,47 @@ body {
   margin: 0 0 8px;
   font-family: var(--font-display);
   font-size: 0.9rem;
-  color: var(--accent-gold);
+  font-weight: 600;
+  color: var(--accent-amber);
 }
 
 .shortcuts-card ul {
   margin: 0;
   padding-left: 16px;
-  font-size: 0.78rem;
-  line-height: 1.55;
+  font-size: 0.77rem;
+  line-height: 1.6;
   color: var(--text-muted);
 }
 
 .shortcuts-card code {
-  background: rgba(255, 232, 163, 0.14);
-  color: #ffe8a3;
+  background: rgba(232, 184, 109, 0.14);
+  color: #f0d7a6;
   padding: 1px 5px;
-  border-radius: 5px;
-  font-size: 0.76rem;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
 }
 
 /* ============================================================================
    RESPONSIVE POLISH (iPhone Portrait, iPhone Landscape, iPad)
    ============================================================================ */
-@media (max-width: 860px) {
+@media (max-width: 900px) {
   .brand-title {
     display: none;
   }
   .mode-tab {
     padding: 6px 10px;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
   }
   .theory-mood {
     display: none;
   }
+  .vinyl-label {
+    display: none;
+  }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .top-bar {
     padding: 6px 8px;
     gap: 5px;
@@ -1282,7 +1352,7 @@ body {
   }
   .mode-tab {
     padding: 6px 9px;
-    font-size: 0.96rem;
+    font-size: 0.94rem;
     min-width: 34px;
     justify-content: center;
   }
@@ -1290,16 +1360,16 @@ body {
     gap: 5px;
   }
   .voice-picker select {
-    max-width: 134px;
-    padding: 6px 26px 6px 9px;
+    max-width: 126px;
+    padding: 6px 24px 6px 9px;
     font-size: 0.72rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .icon-pill {
-    height: 32px;
-    min-width: 32px;
+    height: 31px;
+    min-width: 31px;
     padding: 0 7px;
   }
   .metro-text {
@@ -1311,16 +1381,15 @@ body {
     right: 8px;
   }
   .ribbon-row {
-    padding: 6px 8px;
-    gap: 6px;
+    padding: 5px 8px;
+    gap: 5px;
   }
-  /* Compact 2-row Songs layout on iPhone portrait for maximum falling-note sky! */
   .songs-row .song-select {
     flex: 1 1 135px;
     min-width: 0;
     max-width: 100%;
-    padding: 6px 26px 6px 10px;
-    font-size: 0.78rem;
+    padding: 5px 24px 5px 9px;
+    font-size: 0.76rem;
   }
   .songs-row .speed-chip {
     display: none;
@@ -1328,9 +1397,12 @@ body {
   .songs-row .speed-cycle-btn {
     display: inline-flex;
   }
+  .songs-row .song-guidance-group {
+    display: none;
+  }
   .songs-row .song-play-btn {
-    padding: 6px 11px;
-    font-size: 0.78rem;
+    padding: 5px 10px;
+    font-size: 0.76rem;
   }
   .song-tip-bar {
     display: none;
@@ -1340,15 +1412,15 @@ body {
     gap: 8px;
   }
   .harmony-text strong {
-    font-size: 0.86rem;
+    font-size: 0.85rem;
   }
   .harmony-text span {
-    font-size: 0.7rem;
+    font-size: 0.69rem;
   }
   .chord-pad {
     min-width: 58px;
-    min-height: 44px;
-    padding: 6px 9px;
+    min-height: 42px;
+    padding: 5px 9px;
   }
   .keybed-rail {
     padding: 6px 8px;
@@ -1359,34 +1431,34 @@ body {
     gap: 5px;
   }
   .range-label {
-    font-size: 0.76rem;
-    min-width: 50px;
+    font-size: 0.72rem;
+    min-width: 52px;
   }
   .mini-range-bar {
-    width: 60px;
-    height: 20px;
+    width: 58px;
+    height: 19px;
   }
   .rail-pill-btn {
     padding: 5px 8px;
-    font-size: 0.72rem;
+    font-size: 0.71rem;
   }
   .sustain-pedal {
     padding: 5px 10px;
-    font-size: 0.74rem;
+    font-size: 0.73rem;
     gap: 5px;
   }
   .cheek-block {
     flex: 0 0 5px;
   }
   .keyboard-console {
-    height: clamp(230px, 46dvh, 330px);
+    height: clamp(225px, 45dvh, 325px);
   }
   .keyboard-console.dual-active {
-    height: clamp(295px, 55dvh, 420px);
+    height: clamp(290px, 54dvh, 415px);
   }
 }
 
-/* Landscape Phone Optimization — turns your iPhone into a sleek pocket piano! */
+/* Landscape Phone Optimization */
 @media (max-height: 500px) {
   .top-bar {
     padding: 4px 10px;
@@ -1397,15 +1469,15 @@ body {
   }
   .mode-tab {
     padding: 4px 9px;
-    font-size: 0.76rem;
+    font-size: 0.74rem;
   }
   .icon-pill {
     height: 28px;
     min-width: 28px;
   }
   .voice-picker select {
-    padding: 4px 24px 4px 9px;
-    font-size: 0.74rem;
+    padding: 4px 22px 4px 9px;
+    font-size: 0.72rem;
   }
   .stage-ribbon {
     top: 4px;
@@ -1417,8 +1489,8 @@ body {
     gap: 5px;
   }
   .pill-btn {
-    padding: 5px 10px;
-    font-size: 0.74rem;
+    padding: 4px 9px;
+    font-size: 0.72rem;
   }
   .harmony-badge {
     padding: 4px 10px;
@@ -1430,7 +1502,7 @@ body {
     display: none;
   }
   .chord-pad {
-    min-width: 48px;
+    min-width: 50px;
     padding: 3px 8px;
   }
   .keybed-rail {
@@ -1441,6 +1513,6 @@ body {
   }
   .keyboard-console,
   .keyboard-console.dual-active {
-    height: 58dvh;
+    height: 56dvh;
   }
 }

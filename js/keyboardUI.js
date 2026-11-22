@@ -57,7 +57,7 @@ export class KeyboardUI {
     this.dualRow = Boolean(options.dualRow);
     this.dualRowSuspended = false; // Temporarily 1-row during falling-notes Songs mode
     this.labelMode = options.labelMode || 'notes'; // 'notes' | 'solfege' | 'keys' | 'none'
-    this.rainbowMode = options.rainbowMode ?? true;
+    this.rainbowMode = options.rainbowMode ?? false;
     this.preferFlats = false;
 
     // Pedagogical overlays
@@ -199,6 +199,14 @@ export class KeyboardUI {
     for (const el of els) {
       el.classList.toggle('demo-active', Boolean(active));
     }
+  }
+
+  handleMidiNoteOn(midi, velocity = 0.8) {
+    this._pressNote(midi, `midi:${midi}`, velocity, false);
+  }
+
+  handleMidiNoteOff(midi) {
+    this._releaseNote(midi, `midi:${midi}`);
   }
 
   getActiveNotes() {
@@ -368,7 +376,7 @@ export class KeyboardUI {
         el.classList.toggle('in-scale', inScale);
         el.classList.toggle('is-scale-root', isRoot);
         el.classList.toggle('out-of-scale', Boolean(this.scalePcs && !inScale));
-        if (dotEl) dotEl.textContent = isRoot ? '★' : '';
+        if (dotEl) dotEl.textContent = isRoot ? '◆' : '';
 
         el.classList.toggle('chord-highlight', isChord);
         el.classList.toggle('is-target', Boolean(target));

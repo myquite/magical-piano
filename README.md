@@ -1,21 +1,18 @@
-# ✨ Starlight Keys — Magical Learning Piano
+# ✦ Nocturne Keys — Jazz & Lo-Fi Piano Atelier
 
-A whimsical, zero-dependency interactive piano web app built for **mouse, computer keyboard, iPhone, and iPad** — crafted to feel magical while teaching real music skills.
+An atmospheric, zero-dependency interactive piano web app crafted for **adult learners** who want to learn to read and play music — with warm late-night whimsy across **mouse, computer keyboard, iPhone, iPad, and USB/Bluetooth MIDI keyboards**.
 
 ## Features
 
-- **Multi-Touch, Mouse & Computer Keyboard**
-  - Up to 10-finger polyphony and touch/mouse glissando
-  - Responsive layout tailored for iPhone portrait/landscape, iPad, and desktop (Add to Home Screen PWA support)
-  - Computer keyboard layout: white keys `A S D F G H J K L ; '`, black keys `W E T Y U O P`, octave shift `Z`/`X`, and Sustain Pedal on `Spacebar`
-- **5 Expressive Web Audio Instruments**
-  - Concert Piano, Starlight Celesta, Storybook Marimba, Cloud Harp, and Moonbeam Synth with stereo hall reverb and true sustain pedal physics
-- **Real Music-Learning Modes**
-  - **Free Play + Harmony Detective:** Real-time Treble/Bass musical staff, live chord & interval recognition (including inversions), and a melody recorder/looper
-  - **Songs Studio:** 9 progressive melodies & chord exercises with falling starlight notes, real piano fingerings (`1–5`), Wait Mode, Tempo Play-Along (50%–125%), and Listen mode
-  - **Scales & Chords Explorer:** Highlight any key & scale (*Major, Minor, Pentatonic, Blues, Lydian, Dorian*) with root stars and clickable diatonic chord pads
-  - **Ear & Sight Training:** Staff sight-reading and progressive melodic echo games with Pip the Musical Owl
-  - **Practice Tools:** Built-in lookahead metronome, Chroma-Notes rainbow toggle, and switchable key labels (*Notes*, *Solfège*, *Keyboard Shortcuts*, or *Clean*)
+- **5 Procedural Jazz & Lo-Fi Voices + Vinyl Ambience**
+  - *Velvet Rhodes*, *Lo-Fi Felt Piano*, *Midnight Grand*, *Lounge Vibraphone*, and *Nocturne Tape Pad* with hall reverb, true sustain pedal physics, and an optional procedural **Vinyl & Rain** ambience toggle
+- **Real-Time Grand Staff & Notation-First Repertoire**
+  - **Session Mode:** Braced Treble + Bass Grand Staff, live chord/inversion/shell-voicing detective, harmonic constellation visuals, and phrase recorder/looper
+  - **Repertoire Studio:** 10 adult-oriented jazz, lo-fi, and impressionist studies (*Midnight Café ii–V–I*, *Rainy Window*, *Gymnopédie No. 1*, *Autumn Leaves Cadence*, *Blue Hour Blues*, *Velvet Neo-Soul Voicings*, *Bach Prelude in C*, *Gnossienne No. 1*, *Clair de Lune*, *Moonlight Sonata*) rendered on a **scrolling Grand Staff** with key/time signatures, rhythms, chord symbols, and progressive scaffolding (*Guided → Assist → Pure Sheet*) plus an optional *Bars* spatial view
+  - **Harmony Explorer:** Explore Major, Dorian, Natural Minor, Mixolydian, Lydian, Minor Blues, and Minor Pentatonic scales with diatonic **7th chords & triads**
+  - **Sight & Ear Atelier:** Landmark-based Treble/Bass/Grand Staff note reading, stacked chord sight-reading, ear interval recognition, and melodic echo with live staff transcription
+- **Multi-Touch, Computer Keyboard & Web MIDI**
+  - Plug-and-play **Web MIDI API** support (velocity + sustain pedal CC64) alongside 10-finger touch polyphony and desktop keyboard shortcuts (`A–'` white keys, `W–P` black keys, `Z`/`X` octave shift, `Spacebar` sustain)
 
 ## Running Locally
 

@@ -61,7 +61,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   const lanIp = getLanIp();
-  console.log('\n✨ Starlight Keys — Magical Learning Piano');
+  console.log('\n✦ Nocturne Keys — Jazz & Lo-Fi Piano Atelier');
   console.log(`   Local:   http://localhost:${PORT}`);
   if (lanIp) {
     console.log(`   iPhone / iPad (same Wi-Fi): http://${lanIp}:${PORT}`);

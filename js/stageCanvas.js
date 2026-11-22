@@ -24,6 +24,7 @@ export class StageCanvas {
     this.promptNotes = [];        // Sight-reading target notes [{ midi, state: 'waiting'|'correct'|'wrong' }]
     this.fallingState = null;     // { song, currentBeat, waitIndex, lookaheadBeats, hitEvents: Set<number> }
     this.floatingTexts = [];      // Celebratory floating badges ("Sparkle!", "Perfect!", etc.)
+    this.notePills = [];          // Touch-friendly floating pitch pills rising above struck keys
 
     // Particle systems
     this.stars = [];
@@ -189,6 +190,20 @@ export class StageCanvas {
       color: info.color.hex,
     });
 
+    // Floating note pill above the key (especially helpful on touch screens where fingers cover key labels!)
+    if (!isDemo && !(this.fallingState && this.fallingState.song)) {
+      this.notePills.push({
+        label: info.fullName,
+        x: Math.max(26, Math.min(this.width - 26, x)),
+        y: y - 18,
+        vy: -42,
+        life: 0.85,
+        maxLife: 0.85,
+        color: info.color.hex,
+      });
+      if (this.notePills.length > 16) this.notePills.shift();
+    }
+
     // Firefly & musical note burst
     const count = isDemo ? 7 : 12;
     const glyphs = ['♪', '♫', '✦', '✧'];
@@ -292,6 +307,15 @@ export class StageCanvas {
       if (ft.life <= 0) this.floatingTexts.splice(i, 1);
     }
 
+    // Update touch-friendly floating note pills
+    for (let i = this.notePills.length - 1; i >= 0; i--) {
+      const np = this.notePills[i];
+      np.life -= dt;
+      np.y += np.vy * dt;
+      np.vy *= Math.pow(0.28, dt); // Gentle ease-out float
+      if (np.life <= 0) this.notePills.splice(i, 1);
+    }
+
     // Update Pip the Owl physics
     this.owl.hop += this.owl.hopVel * dt;
     this.owl.hopVel += 640 * dt;
@@ -362,17 +386,17 @@ export class StageCanvas {
     }
 
     // 6. Real-Time Musical Staff (tucked away during Falling Notes so left-hand note lanes stay 100% unobstructed)
-    const canShowStaff = this.showStaff && (h >= 120) && !(this.fallingState && this.fallingState.song);
+    const canShowStaff = this.showStaff && (h >= 105) && !(this.fallingState && this.fallingState.song);
     if (canShowStaff) {
       this._drawMusicalStaff(ctx, w, h, t);
     }
 
     // 7. Pip the Musical Owl mascot
-    if (h >= 110) {
+    if (h >= 84) {
       this._drawPipOwl(ctx, w, h, t);
     }
 
-    // 8. Ripples & Fireflies
+    // 8. Ripples, Fireflies & Floating Touch Note Pills
     for (const r of this.ripples) {
       ctx.save();
       ctx.strokeStyle = r.color;
@@ -381,6 +405,30 @@ export class StageCanvas {
       ctx.beginPath();
       ctx.ellipse(r.x, r.y, r.r, r.r * 0.42, 0, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
+    }
+
+    for (const np of this.notePills) {
+      const alpha = Math.max(0, Math.min(1, np.life / (np.maxLife * 0.55)));
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = '700 12px "Fredoka", "Quicksand", system-ui, sans-serif';
+      const tw = ctx.measureText(np.label).width;
+      const pw = Math.max(32, tw + 14);
+      const ph = 22;
+      ctx.fillStyle = 'rgba(20, 16, 44, 0.84)';
+      ctx.strokeStyle = np.color;
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = np.color;
+      ctx.shadowBlur = 10;
+      this._roundRect(ctx, np.x - pw / 2, np.y - ph / 2, pw, ph, 11);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fffdf7';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(np.label, np.x, np.y + 0.5);
       ctx.restore();
     }
 
@@ -575,13 +623,36 @@ export class StageCanvas {
   // Real-Time Musical Staff (Treble Clef + Automatic Bass Clef / Ledger Lines)
   // --------------------------------------------------------------------------
   _drawMusicalStaff(ctx, w, h, t) {
-    const compact = w < 520 || h < 175;
-    const isFalling = Boolean(this.fallingState && this.fallingState.song);
+    const isPortraitPhone = w < 540 && h > 160;
+    const isUltraShort = h < 145;
+    const compact = w < 540 || h < 185;
+    const isSightPrompt = this.promptNotes.length > 0;
 
-    const cardW = compact ? Math.min(210, w * 0.56) : isFalling ? 215 : Math.min(310, w * 0.42);
-    const cardH = compact ? 92 : 114;
-    const cardX = isFalling ? 14 : compact ? 12 : Math.max(16, w * 0.04);
-    const cardY = Math.max(54, (h - cardH) * 0.54);
+    // Measure live ribbon bottom so staff never collides with floating controls on portrait/landscape mobile
+    let ribbonBottom = 54;
+    const ribbonEl = document.getElementById('stageRibbon');
+    const stageRect = this.canvas.getBoundingClientRect();
+    if (ribbonEl && stageRect) {
+      const rRect = ribbonEl.getBoundingClientRect();
+      ribbonBottom = Math.max(48, rRect.bottom - stageRect.top + 10);
+    }
+
+    const cardW = isPortraitPhone
+      ? Math.min(isSightPrompt ? 290 : 260, w - 28)
+      : compact
+      ? Math.min(220, w * 0.48)
+      : Math.min(310, w * 0.42);
+    const cardH = isUltraShort ? 78 : compact ? 96 : 114;
+
+    const cardX = isPortraitPhone
+      ? (w - cardW) / 2
+      : Math.max(14, w * 0.04);
+
+    // Center nicely in the available sky between ribbonBottom and Pip's perch
+    const bottomReserve = isPortraitPhone ? 76 : 14;
+    const availH = Math.max(cardH, h - ribbonBottom - bottomReserve);
+    const cardY = Math.max(ribbonBottom, ribbonBottom + (availH - cardH) * 0.45);
+    if (cardY + cardH > h - 6) return; // Gracefully skip if too little vertical space on ultra-tiny landscape
 
     ctx.save();
 
@@ -771,11 +842,12 @@ export class StageCanvas {
   // Pip the Musical Owl Mascot (Vector-drawn, lively & charming)
   // --------------------------------------------------------------------------
   _drawPipOwl(ctx, w, h, t) {
-    const compact = w < 520 || h < 160;
-    const scale = compact ? 0.72 : 0.96;
-    const x = w - (compact ? 48 : 74);
-    const baseY = h - (compact ? 42 : 56);
-    const bob = Math.sin(t * 2.6) * 2.5;
+    const ultraShort = h < 130;
+    const compact = w < 540 || h < 175;
+    const scale = ultraShort ? 0.56 : compact ? 0.72 : 0.96;
+    const x = w - (ultraShort ? 36 : compact ? 46 : 74);
+    const baseY = h - (ultraShort ? 26 : compact ? 38 : 56);
+    const bob = Math.sin(t * 2.6) * (ultraShort ? 1.5 : 2.5);
     const y = baseY + this.owl.hop + bob;
 
     ctx.save();
@@ -914,8 +986,9 @@ export class StageCanvas {
 
     ctx.restore();
 
-    // Optional Speech Bubble to the left of Pip
-    if (this.owl.speech && this.owl.speechTimer > 0 && w >= 360) {
+    // Optional Speech Bubble to the left of Pip (kept tucked away on narrow phones during falling notes)
+    const isNarrowFalling = w < 540 && Boolean(this.fallingState && this.fallingState.song);
+    if (this.owl.speech && this.owl.speechTimer > 0 && w >= 360 && !isNarrowFalling) {
       ctx.save();
       ctx.font = '600 12px "Quicksand", system-ui, sans-serif';
       const padX = 12;

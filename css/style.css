@@ -517,6 +517,8 @@ body {
   gap: 6px;
   overflow-x: auto;
   padding-bottom: 2px;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
 .chord-pads::-webkit-scrollbar { display: none; }
@@ -666,8 +668,14 @@ body {
     rgba(0, 0, 0, 0.25) 5px
   );
   border: 1px solid rgba(255, 224, 150, 0.26);
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
   overflow: hidden;
+}
+
+.mini-range-bar.dragging {
+  cursor: grabbing;
+  border-color: var(--accent-gold);
 }
 
 .mini-window {
@@ -675,9 +683,60 @@ body {
   top: 1px;
   bottom: 1px;
   border-radius: 4px;
-  background: linear-gradient(180deg, rgba(255, 224, 102, 0.75), rgba(244, 180, 65, 0.65));
+  background: linear-gradient(180deg, rgba(255, 224, 102, 0.78), rgba(244, 180, 65, 0.68));
   box-shadow: 0 0 8px rgba(255, 224, 102, 0.55);
-  transition: left 0.18s ease, width 0.18s ease;
+  transition: left 0.14s ease, width 0.14s ease;
+  pointer-events: none;
+}
+
+.mini-range-bar.dragging .mini-window {
+  transition: none;
+}
+
+.rail-btn.flash-shift {
+  background: rgba(255, 224, 102, 0.42);
+  border-color: var(--accent-gold);
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(255, 224, 102, 0.75);
+}
+
+.rail-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 224, 150, 0.3);
+  background: rgba(0, 0, 0, 0.28);
+  color: #f3dfb0;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.14s ease;
+}
+
+.rail-pill-btn:hover {
+  border-color: var(--border-gold);
+  background: rgba(255, 224, 150, 0.14);
+}
+
+.rail-pill-btn.active {
+  background: linear-gradient(180deg, rgba(167, 139, 250, 0.42), rgba(108, 72, 200, 0.44));
+  border-color: #d8c4ff;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(167, 139, 250, 0.48);
+}
+
+.rail-pill-btn.suspended {
+  opacity: 0.42;
+}
+
+.speed-cycle-btn {
+  display: none;
+  color: var(--accent-gold);
+  padding: 6px 10px;
 }
 
 .sustain-pedal {
@@ -734,12 +793,48 @@ body {
 .piano-keyboard {
   position: relative;
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
   height: 100%;
   touch-action: none;
   overflow: hidden;
   background: #120d18;
   /* Red felt strip along the very top of the keys like a real grand piano! */
   border-top: 3px solid #7d2232;
+}
+
+.keyboard-deck {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+}
+
+/* Stacked 2-Row Manual Divider (GarageBand-inspired double deck!) */
+.piano-keyboard.dual-row {
+  gap: 5px;
+  background: #241410;
+}
+
+.piano-keyboard.dual-row .deck-lower {
+  border-top: 3px solid #7d2232;
+}
+
+.piano-keyboard.dual-row .white-key {
+  padding-bottom: 9px;
+}
+
+.piano-keyboard.dual-row .black-key {
+  padding-bottom: 7px;
+}
+
+.piano-keyboard.dual-row .key-chroma-bar {
+  bottom: 3px;
+  height: 3px;
+}
+
+.keyboard-console.dual-active {
+  height: clamp(290px, 53dvh, 430px);
 }
 
 .keys-white-layer {
@@ -1210,46 +1305,142 @@ body {
   .metro-text {
     display: none;
   }
-  .mini-range-bar {
-    width: 78px;
-  }
-  .cheek-block {
-    flex: 0 0 6px;
-  }
   .stage-ribbon {
     top: 6px;
     left: 8px;
     right: 8px;
   }
+  .ribbon-row {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  /* Compact 2-row Songs layout on iPhone portrait for maximum falling-note sky! */
+  .songs-row .song-select {
+    flex: 1 1 135px;
+    min-width: 0;
+    max-width: 100%;
+    padding: 6px 26px 6px 10px;
+    font-size: 0.78rem;
+  }
+  .songs-row .speed-chip {
+    display: none;
+  }
+  .songs-row .speed-cycle-btn {
+    display: inline-flex;
+  }
+  .songs-row .song-play-btn {
+    padding: 6px 11px;
+    font-size: 0.78rem;
+  }
   .song-tip-bar {
     display: none;
   }
+  .harmony-badge {
+    padding: 6px 11px;
+    gap: 8px;
+  }
+  .harmony-text strong {
+    font-size: 0.86rem;
+  }
+  .harmony-text span {
+    font-size: 0.7rem;
+  }
+  .chord-pad {
+    min-width: 58px;
+    min-height: 44px;
+    padding: 6px 9px;
+  }
+  .keybed-rail {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  .rail-left,
+  .rail-right {
+    gap: 5px;
+  }
+  .range-label {
+    font-size: 0.76rem;
+    min-width: 50px;
+  }
+  .mini-range-bar {
+    width: 60px;
+    height: 20px;
+  }
+  .rail-pill-btn {
+    padding: 5px 8px;
+    font-size: 0.72rem;
+  }
+  .sustain-pedal {
+    padding: 5px 10px;
+    font-size: 0.74rem;
+    gap: 5px;
+  }
+  .cheek-block {
+    flex: 0 0 5px;
+  }
   .keyboard-console {
-    height: clamp(220px, 46dvh, 320px);
+    height: clamp(230px, 46dvh, 330px);
+  }
+  .keyboard-console.dual-active {
+    height: clamp(295px, 55dvh, 420px);
   }
 }
 
-/* Landscape Phone Optimization — maximize playable keybed height! */
+/* Landscape Phone Optimization — turns your iPhone into a sleek pocket piano! */
 @media (max-height: 500px) {
   .top-bar {
     padding: 4px 10px;
+    gap: 6px;
+  }
+  .brand-title {
+    display: none;
   }
   .mode-tab {
-    padding: 4px 10px;
+    padding: 4px 9px;
+    font-size: 0.76rem;
+  }
+  .icon-pill {
+    height: 28px;
+    min-width: 28px;
+  }
+  .voice-picker select {
+    padding: 4px 24px 4px 9px;
+    font-size: 0.74rem;
   }
   .stage-ribbon {
     top: 4px;
+    left: 10px;
+    right: 10px;
   }
   .ribbon-row {
     padding: 4px 8px;
+    gap: 5px;
+  }
+  .pill-btn {
+    padding: 5px 10px;
+    font-size: 0.74rem;
+  }
+  .harmony-badge {
+    padding: 4px 10px;
+  }
+  .harmony-text span {
+    display: none;
   }
   .song-tip-bar {
     display: none;
+  }
+  .chord-pad {
+    min-width: 48px;
+    padding: 3px 8px;
   }
   .keybed-rail {
     padding: 4px 10px;
   }
-  .keyboard-console {
-    height: 54dvh;
+  .rail-pill-btn {
+    display: none;
+  }
+  .keyboard-console,
+  .keyboard-console.dual-active {
+    height: 58dvh;
   }
 }

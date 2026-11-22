@@ -42,6 +42,20 @@ export class AudioEngine {
     this._nextBeatTime = 0;
     this._currentBeat = 0;
     this.onMetronomeBeat = null;
+
+    // Automatically recover iOS Safari AudioContext after app switch / screen lock
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && this.ctx && this.ctx.state !== 'running') {
+          this.ctx.resume().catch(() => {});
+        }
+      });
+      window.addEventListener('pageshow', () => {
+        if (this.ctx && this.ctx.state !== 'running') {
+          this.ctx.resume().catch(() => {});
+        }
+      });
+    }
   }
 
   ensureContext() {
@@ -81,7 +95,7 @@ export class AudioEngine {
       this.noiseBuffer = this._createNoiseBuffer(0.08);
     }
 
-    if (this.ctx.state === 'suspended') {
+    if (this.ctx.state !== 'running') {
       this.ctx.resume().catch(() => {});
     }
 

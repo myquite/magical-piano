@@ -1,7 +1,8 @@
 // ============================================================================
 // Starlight Keys — Tactile Multi-Touch, Mouse & Computer-Keyboard Piano UI
 // Supports 10-finger polyphony, touch/mouse glissando, authentic piano key
-// geometry, Chroma-Notes glow, scale guides, and finger-number beacons.
+// geometry, GarageBand-style 2-Row mobile mode, Chroma-Notes glow, scale
+// guides, and finger-number beacons.
 // ============================================================================
 
 import { isBlackKey, midiToNoteInfo } from './musicTheory.js';
@@ -33,7 +34,6 @@ const CODE_TO_OFFSET = new Map(KEY_BINDINGS.map((b) => [b.code, b.offset]));
 const OFFSET_TO_LABEL = new Map(KEY_BINDINGS.map((b) => [b.offset, b.label]));
 
 // Authentic piano black-key fine offset adjustments (as fraction of white-key width)
-// Places C# slightly left of seam, D# slightly right, F# left, G# centered, A# right
 const BLACK_KEY_FINE_OFFSET = {
   1: -0.055, // C#
   3:  0.055, // D#
@@ -48,25 +48,28 @@ export class KeyboardUI {
     this.onNoteOn = options.onNoteOn || (() => {});
     this.onNoteOff = options.onNoteOff || (() => {});
     this.onRangeChange = options.onRangeChange || (() => {});
+    this.onAutoShift = options.onAutoShift || (() => {});
     this.onSustainKey = options.onSustainKey || (() => {});
     this.onOctaveShortcut = options.onOctaveShortcut || (() => {});
 
     this.startMidi = options.startMidi ?? 60; // C4
     this.whiteKeyCount = options.whiteKeyCount ?? 15; // 2 octaves (C4..C6)
+    this.dualRow = Boolean(options.dualRow);
+    this.dualRowSuspended = false; // Temporarily 1-row during falling-notes Songs mode
     this.labelMode = options.labelMode || 'notes'; // 'notes' | 'solfege' | 'keys' | 'none'
     this.rainbowMode = options.rainbowMode ?? true;
     this.preferFlats = false;
 
     // Pedagogical overlays
-    this.scalePcs = null;     // Set<pc> or null
-    this.scaleRootPc = null;  // pc 0..11 or null
-    this.targetMap = new Map(); // midi -> { finger?: number, label?: string, color?: string }
-    this.highlightSet = new Set(); // midi notes softly highlighted (e.g. chord preview)
+    this.scalePcs = null;
+    this.scaleRootPc = null;
+    this.targetMap = new Map();
+    this.highlightSet = new Set();
 
-    // Interaction state
-    this.keyElements = new Map(); // midi -> HTMLElement
+    // Interaction state (midi -> HTMLElement[] to cleanly support overlapping C in 2-row mode)
+    this.keyElements = new Map();
     this.pointerNotes = new Map(); // pointerId -> midi
-    this.heldSources = new Map(); // midi -> Set<sourceId>
+    this.heldSources = new Map();  // midi -> Set<sourceId>
     this.activeComputerKeys = new Map(); // code -> midi
     this.visibleMidis = [];
 
@@ -74,29 +77,52 @@ export class KeyboardUI {
     this.render();
   }
 
+  isEffectivelyDualRow() {
+    const isShortLandscape = typeof window !== 'undefined' && window.innerHeight < 500;
+    return this.dualRow && !this.dualRowSuspended && !isShortLandscape;
+  }
+
   getEndMidi() {
-    return this.visibleMidis.length > 0
-      ? this.visibleMidis[this.visibleMidis.length - 1]
-      : this.startMidi + 24;
+    if (this.visibleMidis.length === 0) return this.startMidi + 24;
+    return Math.max(...this.visibleMidis);
+  }
+
+  setDualRow(enabled) {
+    const next = Boolean(enabled);
+    if (this.dualRow === next) return;
+    this.dualRow = next;
+    this.releaseAllUserNotes();
+    this.render();
+    this.onRangeChange(this.startMidi, this.getEndMidi(), this.whiteKeyCount);
+  }
+
+  setDualRowSuspended(suspended) {
+    const next = Boolean(suspended);
+    if (this.dualRowSuspended === next) return;
+    this.dualRowSuspended = next;
+    if (this.dualRow) {
+      this.releaseAllUserNotes();
+      this.render();
+      this.onRangeChange(this.startMidi, this.getEndMidi(), this.whiteKeyCount);
+    }
   }
 
   setRange(startMidi, whiteKeyCount = this.whiteKeyCount) {
-    // Snap startMidi to a white key (C or F feels best; snap to nearest C or white key)
-    let clampedStart = Math.max(36, Math.min(84, startMidi));
+    const maxStart = this.isEffectivelyDualRow() ? 72 : 84;
+    let clampedStart = Math.max(36, Math.min(maxStart, startMidi));
     if (isBlackKey(clampedStart)) clampedStart -= 1;
 
-    // Ensure top doesn't exceed C7 (96)
     this.startMidi = clampedStart;
     this.whiteKeyCount = Math.max(8, Math.min(22, whiteKeyCount));
 
-    // Release any held computer/pointer notes cleanly before re-rendering
     this.releaseAllUserNotes();
     this.render();
     this.onRangeChange(this.startMidi, this.getEndMidi(), this.whiteKeyCount);
   }
 
   shiftOctave(delta) {
-    const next = Math.max(36, Math.min(84 - (this.whiteKeyCount >= 15 ? 12 : 0), this.startMidi + delta * 12));
+    const maxStart = this.isEffectivelyDualRow() || this.whiteKeyCount >= 15 ? 72 : 84;
+    const next = Math.max(36, Math.min(maxStart, this.startMidi + delta * 12));
     if (next !== this.startMidi) {
       this.setRange(next, this.whiteKeyCount);
     }
@@ -107,16 +133,26 @@ export class KeyboardUI {
     const currentEnd = this.getEndMidi();
     if (minMidi >= this.startMidi && maxMidi <= currentEnd) return;
 
-    // Pick lowest C <= minMidi so the song fits naturally
+    const prevStart = this.startMidi;
+    const effectiveSpan = this.isEffectivelyDualRow()
+      ? 24
+      : Math.round((this.whiteKeyCount / 7) * 12);
+
+    // Try snapping to the lowest C that contains the phrase
     let targetStart = Math.floor(minMidi / 12) * 12;
     targetStart = Math.max(36, Math.min(72, targetStart));
-    // If maxMidi still overflows and we have a small span, center around song's lowest note
-    const spanSemitones = Math.round((this.whiteKeyCount / 7) * 12);
-    if (maxMidi > targetStart + spanSemitones) {
-      targetStart = Math.max(36, minMidi - 2);
+
+    // If phrase extends past top of window, center cleanly around the phrase
+    if (maxMidi > targetStart + effectiveSpan) {
+      const center = Math.round((minMidi + maxMidi) / 2);
+      targetStart = Math.max(36, Math.min(72, center - Math.floor(effectiveSpan / 2)));
       if (isBlackKey(targetStart)) targetStart -= 1;
     }
-    this.setRange(targetStart, this.whiteKeyCount);
+
+    if (targetStart !== prevStart) {
+      this.setRange(targetStart, this.whiteKeyCount);
+      this.onAutoShift(targetStart > prevStart ? 1 : -1);
+    }
   }
 
   setLabelMode(mode) {
@@ -143,7 +179,6 @@ export class KeyboardUI {
   }
 
   setTargets(targetEntries) {
-    // targetEntries: Array<{ midi, finger?, color? }>
     this.targetMap.clear();
     if (targetEntries) {
       for (const t of targetEntries) {
@@ -158,26 +193,23 @@ export class KeyboardUI {
     this._updateKeyDecorations();
   }
 
-  /**
-   * Externally animate a key (e.g., Demo playback, Echo Ear-Training, Recorder replay)
-   */
   setExternalActive(midi, active) {
-    const el = this.keyElements.get(midi);
-    if (!el) return;
-    el.classList.toggle('demo-active', Boolean(active));
+    const els = this.keyElements.get(midi);
+    if (!els) return;
+    for (const el of els) {
+      el.classList.toggle('demo-active', Boolean(active));
+    }
   }
 
   getActiveNotes() {
     return [...this.heldSources.keys()].sort((a, b) => a - b);
   }
 
-  /**
-   * Returns exact key horizontal geometry relative to a reference element (e.g., Stage Canvas)
-   * so falling starlight notes and firefly emitters line up pixel-for-pixel!
-   */
   getKeyGeometry(midi, referenceRect) {
-    const el = this.keyElements.get(midi);
-    if (!el || !referenceRect) return null;
+    const els = this.keyElements.get(midi);
+    if (!els || els.length === 0 || !referenceRect) return null;
+    // Prefer the first rendered key element (in dual-row, upper deck is closest to stage!)
+    const el = els[0];
     const rect = el.getBoundingClientRect();
     return {
       left: rect.left - referenceRect.left,
@@ -187,11 +219,18 @@ export class KeyboardUI {
     };
   }
 
-  render() {
-    this.container.innerHTML = '';
-    this.keyElements.clear();
-    this.visibleMidis = [];
-    this.container.classList.toggle('rainbow-off', !this.rainbowMode);
+  _registerKeyEl(midi, el) {
+    let arr = this.keyElements.get(midi);
+    if (!arr) {
+      arr = [];
+      this.keyElements.set(midi, arr);
+    }
+    arr.push(el);
+  }
+
+  _buildDeck(deckStartMidi, whiteCount, deckClass) {
+    const deck = document.createElement('div');
+    deck.className = `keyboard-deck ${deckClass || ''}`.trim();
 
     const whiteLayer = document.createElement('div');
     whiteLayer.className = 'keys-white-layer';
@@ -202,23 +241,24 @@ export class KeyboardUI {
     const whites = [];
     const blacks = [];
 
-    let midi = this.startMidi;
-    while (whites.length < this.whiteKeyCount && midi <= 108) {
+    let midi = deckStartMidi;
+    while (whites.length < whiteCount && midi <= 108) {
       if (!isBlackKey(midi)) {
         whites.push({ midi, whiteIdx: whites.length });
-        this.visibleMidis.push(midi);
+        if (!this.visibleMidis.includes(midi)) this.visibleMidis.push(midi);
       } else if (whites.length > 0) {
         blacks.push({ midi, afterWhiteIdx: whites.length - 1 });
-        this.visibleMidis.push(midi);
+        if (!this.visibleMidis.includes(midi)) this.visibleMidis.push(midi);
       }
       midi++;
     }
 
     const totalWhites = whites.length;
     const whiteWidthPct = 100 / totalWhites;
-    const blackWidthPct = whiteWidthPct * 0.62;
+    // Slightly wider black keys on phones for comfortable touch precision
+    const isNarrow = window.innerWidth <= 640;
+    const blackWidthPct = whiteWidthPct * (isNarrow ? 0.66 : 0.62);
 
-    // Render White Keys
     for (const w of whites) {
       const info = midiToNoteInfo(w.midi, this.preferFlats);
       const keyEl = document.createElement('button');
@@ -237,10 +277,9 @@ export class KeyboardUI {
       `;
 
       whiteLayer.appendChild(keyEl);
-      this.keyElements.set(w.midi, keyEl);
+      this._registerKeyEl(w.midi, keyEl);
     }
 
-    // Render Black Keys positioned accurately over white key seams
     for (const b of blacks) {
       const info = midiToNoteInfo(b.midi, this.preferFlats);
       const fineOffset = BLACK_KEY_FINE_OFFSET[info.pc] || 0;
@@ -264,23 +303,43 @@ export class KeyboardUI {
       `;
 
       blackLayer.appendChild(keyEl);
-      this.keyElements.set(b.midi, keyEl);
+      this._registerKeyEl(b.midi, keyEl);
     }
 
-    this.container.appendChild(whiteLayer);
-    this.container.appendChild(blackLayer);
+    deck.appendChild(whiteLayer);
+    deck.appendChild(blackLayer);
+    return deck;
+  }
 
+  render() {
+    this.container.innerHTML = '';
+    this.keyElements.clear();
+    this.visibleMidis = [];
+    const dual = this.isEffectivelyDualRow();
+
+    this.container.classList.toggle('rainbow-off', !this.rainbowMode);
+    this.container.classList.toggle('dual-row', dual);
+
+    if (dual) {
+      // Upper deck: +1 octave (e.g., C5–C6), Lower deck: base octave (e.g., C4–C5)
+      const upperStart = Math.min(84, this.startMidi + 12);
+      const upperDeck = this._buildDeck(upperStart, 8, 'deck-upper');
+      const lowerDeck = this._buildDeck(this.startMidi, 8, 'deck-lower');
+      this.container.appendChild(upperDeck);
+      this.container.appendChild(lowerDeck);
+    } else {
+      const singleDeck = this._buildDeck(this.startMidi, this.whiteKeyCount, 'deck-single');
+      this.container.appendChild(singleDeck);
+    }
+
+    this.visibleMidis.sort((a, b) => a - b);
     this._updateKeyDecorations();
   }
 
   _updateKeyDecorations() {
-    for (const [midi, el] of this.keyElements.entries()) {
+    for (const [midi, els] of this.keyElements.entries()) {
       const info = midiToNoteInfo(midi, this.preferFlats);
-      const labelEl = el.querySelector('.key-label');
-      const dotEl = el.querySelector('.key-scale-dot');
-      const fingerEl = el.querySelector('.key-finger-badge');
 
-      // Label text
       let text = '';
       if (this.labelMode === 'notes') {
         text = info.isBlack ? info.name : (info.pc === 0 ? info.fullName : info.name);
@@ -290,34 +349,38 @@ export class KeyboardUI {
         const offset = midi - this.startMidi;
         text = OFFSET_TO_LABEL.get(offset) || '';
       }
-      if (labelEl) {
-        labelEl.textContent = text;
-        labelEl.classList.toggle('is-c-note', this.labelMode === 'notes' && info.pc === 0);
-      }
 
-      // Scale guide dots & root star
       const inScale = this.scalePcs ? this.scalePcs.has(info.pc) : false;
       const isRoot = this.scaleRootPc !== null && info.pc === this.scaleRootPc && inScale;
-      el.classList.toggle('in-scale', inScale);
-      el.classList.toggle('is-scale-root', isRoot);
-      el.classList.toggle('out-of-scale', Boolean(this.scalePcs && !inScale));
-      if (dotEl) {
-        dotEl.textContent = isRoot ? '★' : '';
-      }
-
-      // Chord highlight
-      el.classList.toggle('chord-highlight', this.highlightSet.has(midi));
-
-      // Guided target beacon + finger number
+      const isChord = this.highlightSet.has(midi);
       const target = this.targetMap.get(midi);
-      el.classList.toggle('is-target', Boolean(target));
-      if (fingerEl) {
-        if (target && target.finger) {
-          fingerEl.textContent = String(target.finger);
-          fingerEl.classList.add('visible');
-        } else {
-          fingerEl.textContent = '';
-          fingerEl.classList.remove('visible');
+
+      for (const el of els) {
+        const labelEl = el.querySelector('.key-label');
+        const dotEl = el.querySelector('.key-scale-dot');
+        const fingerEl = el.querySelector('.key-finger-badge');
+
+        if (labelEl) {
+          labelEl.textContent = text;
+          labelEl.classList.toggle('is-c-note', this.labelMode === 'notes' && info.pc === 0);
+        }
+
+        el.classList.toggle('in-scale', inScale);
+        el.classList.toggle('is-scale-root', isRoot);
+        el.classList.toggle('out-of-scale', Boolean(this.scalePcs && !inScale));
+        if (dotEl) dotEl.textContent = isRoot ? '★' : '';
+
+        el.classList.toggle('chord-highlight', isChord);
+        el.classList.toggle('is-target', Boolean(target));
+
+        if (fingerEl) {
+          if (target && target.finger) {
+            fingerEl.textContent = String(target.finger);
+            fingerEl.classList.add('visible');
+          } else {
+            fingerEl.textContent = '';
+            fingerEl.classList.remove('visible');
+          }
         }
       }
     }
@@ -332,12 +395,13 @@ export class KeyboardUI {
     window.addEventListener('pointerup', (e) => this._handlePointerUp(e));
     window.addEventListener('pointercancel', (e) => this._handlePointerUp(e));
 
-    // Prevent iOS Safari long-press context menu / accidental scroll on keybed
+    // Prevent iOS Safari long-press menu, pinch-zoom, and rubber-band scrolling while playing
     this.container.addEventListener('contextmenu', (e) => e.preventDefault());
     this.container.addEventListener('touchstart', (e) => {
-      if (e.target.closest('.piano-key')) {
-        e.preventDefault();
-      }
+      if (e.target.closest('.piano-key')) e.preventDefault();
+    }, { passive: false });
+    this.container.addEventListener('touchmove', (e) => {
+      if (e.target.closest('.piano-key')) e.preventDefault();
     }, { passive: false });
 
     // Computer Keyboard
@@ -350,11 +414,10 @@ export class KeyboardUI {
     const rect = keyEl.getBoundingClientRect();
     if (!rect.height) return 0.78;
     const ratio = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-    // Pressing closer to the front edge of the key produces slightly fuller dynamics
-    return 0.56 + ratio * 0.38;
+    return 0.58 + ratio * 0.36;
   }
 
-  _pressNote(midi, sourceId, velocity = 0.78) {
+  _pressNote(midi, sourceId, velocity = 0.78, isTouch = false) {
     let sources = this.heldSources.get(midi);
     const wasHeld = Boolean(sources && sources.size > 0);
     if (!sources) {
@@ -363,10 +426,15 @@ export class KeyboardUI {
     }
     sources.add(sourceId);
 
-    const el = this.keyElements.get(midi);
-    if (el) el.classList.add('pressed');
+    const els = this.keyElements.get(midi);
+    if (els) {
+      for (const el of els) el.classList.add('pressed');
+    }
 
     if (!wasHeld) {
+      if (isTouch && typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(6); } catch {}
+      }
       this.onNoteOn(midi, velocity);
     }
   }
@@ -378,16 +446,20 @@ export class KeyboardUI {
 
     if (sources.size === 0) {
       this.heldSources.delete(midi);
-      const el = this.keyElements.get(midi);
-      if (el) el.classList.remove('pressed');
+      const els = this.keyElements.get(midi);
+      if (els) {
+        for (const el of els) el.classList.remove('pressed');
+      }
       this.onNoteOff(midi);
     }
   }
 
   releaseAllUserNotes() {
     for (const [midi] of this.heldSources.entries()) {
-      const el = this.keyElements.get(midi);
-      if (el) el.classList.remove('pressed');
+      const els = this.keyElements.get(midi);
+      if (els) {
+        for (const el of els) el.classList.remove('pressed');
+      }
       this.onNoteOff(midi);
     }
     this.heldSources.clear();
@@ -404,12 +476,11 @@ export class KeyboardUI {
     const midi = Number(keyEl.dataset.midi);
     const velocity = this._computeVelocity(keyEl, e.clientY);
     this.pointerNotes.set(e.pointerId, midi);
-    this._pressNote(midi, `ptr:${e.pointerId}`, velocity);
+    this._pressNote(midi, `ptr:${e.pointerId}`, velocity, e.pointerType === 'touch');
   }
 
   _handlePointerMove(e) {
     if (!this.pointerNotes.has(e.pointerId)) return;
-    // For mouse, verify button is still held
     if (e.pointerType === 'mouse' && (e.buttons & 1) === 0) {
       this._handlePointerUp(e);
       return;
@@ -427,7 +498,7 @@ export class KeyboardUI {
       if (nextMidi != null) {
         this.pointerNotes.set(e.pointerId, nextMidi);
         const velocity = this._computeVelocity(keyEl, e.clientY);
-        this._pressNote(nextMidi, `ptr:${e.pointerId}`, velocity);
+        this._pressNote(nextMidi, `ptr:${e.pointerId}`, velocity, e.pointerType === 'touch');
       } else {
         this.pointerNotes.set(e.pointerId, null);
       }
@@ -453,19 +524,16 @@ export class KeyboardUI {
       if (!e.repeat) this.onSustainKey(true);
       return;
     }
-
     if (e.code === 'KeyZ' && !e.repeat) {
       e.preventDefault();
       this.onOctaveShortcut(-1);
       return;
     }
-
     if (e.code === 'KeyX' && !e.repeat) {
       e.preventDefault();
       this.onOctaveShortcut(1);
       return;
     }
-
     if (e.repeat) return;
 
     const offset = CODE_TO_OFFSET.get(e.code);
@@ -476,7 +544,7 @@ export class KeyboardUI {
 
     e.preventDefault();
     this.activeComputerKeys.set(e.code, midi);
-    this._pressNote(midi, `kbd:${e.code}`, 0.8);
+    this._pressNote(midi, `kbd:${e.code}`, 0.8, false);
   }
 
   _handleKeyUp(e) {

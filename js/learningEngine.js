@@ -70,6 +70,7 @@ export class LearningEngine {
     this.keyboard.setScaleGuide(null, null);
     this.keyboard.setTargets([]);
     this.keyboard.setChordHighlight([]);
+    this.keyboard.setDualRowSuspended(newMode === 'songs');
     this.stage.setFallingState(null);
     this.stage.setPromptNotes([]);
 
@@ -458,11 +459,24 @@ export class LearningEngine {
       return;
     }
 
-    // Ensure next note is on screen if keyboard span is narrow (e.g. iPhone portrait)
+    // Ensure current note is visible; when shifting on a narrow phone, look ahead 2 notes
+    // so the whole mini-phrase frames cleanly without bouncing back and forth!
     const minN = Math.min(...ev.notes);
     const maxN = Math.max(...ev.notes);
     if (minN < this.keyboard.startMidi || maxN > this.keyboard.getEndMidi()) {
-      this.keyboard.ensureMidiRangeVisible(minN, maxN);
+      let phraseMin = minN;
+      let phraseMax = maxN;
+      for (let k = 1; k <= 2; k++) {
+        const nextEv = this.song.events[this.waitIndex + k];
+        if (!nextEv) break;
+        const candMin = Math.min(phraseMin, ...nextEv.notes);
+        const candMax = Math.max(phraseMax, ...nextEv.notes);
+        if (candMax - candMin <= 12) {
+          phraseMin = candMin;
+          phraseMax = candMax;
+        }
+      }
+      this.keyboard.ensureMidiRangeVisible(phraseMin, phraseMax);
     }
 
     const targets = ev.notes.map((midi, i) => ({

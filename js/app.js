@@ -16,13 +16,21 @@ import {
 } from './musicTheory.js';
 import { SONGS } from './songs.js';
 
-// Determine a great default keyboard span based on viewport width
+// Determine a great default keyboard span based on viewport width & orientation
 function getRecommendedWhiteKeys() {
   const w = window.innerWidth;
-  if (w < 480) return 8;   // 1 octave (big, comfortable iPhone portrait keys!)
-  if (w < 760) return 11;  // 1.5 octaves (iPhone landscape / mini tablet)
-  if (w < 1180) return 15; // 2 octaves (iPad / laptop)
-  return 15;               // 2 crisp spacious octaves on desktop (expandable to 3!)
+  const h = window.innerHeight;
+  if (w < 480) return 8;                  // 1 octave (big, comfortable iPhone portrait keys!)
+  if (h < 500 && w < 940) return 11;      // 1.5 octaves (iPhone landscape — spacious pocket piano!)
+  if (w < 760) return 11;                 // 1.5 octaves (mini tablet)
+  return 15;                              // 2 crisp spacious octaves on iPad/desktop
+}
+
+function isIOSDevice() {
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
 }
 
 function loadPrefs() {
@@ -49,7 +57,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const stageArea = document.getElementById('stageArea');
   const stageCanvasEl = document.getElementById('stageCanvas');
   const keyboardEl = document.getElementById('pianoKeyboard');
+  const keyboardConsole = document.getElementById('keyboardConsole');
   const audioHint = document.getElementById('audioHint');
+  const audioHintText = document.getElementById('audioHintText');
+
+  if (audioHintText && isIOSDevice()) {
+    audioHintText.textContent = '✨ Tap any key to play • Silent switch off';
+  }
+
+  // Prevent accidental iOS Safari rubber-band page bounce outside scrollable containers
+  document.addEventListener('touchmove', (e) => {
+    if (e.target.closest('.drawer-body, .chord-pads, .mode-tabs')) return;
+    if (e.target.closest('.app-shell')) {
+      e.preventDefault();
+    }
+  }, { passive: false });
 
   const modeTabs = document.querySelectorAll('.mode-tab');
   const ribbonPanels = document.querySelectorAll('.ribbon-panel');
@@ -71,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const songPlayBtn = document.getElementById('songPlayBtn');
   const speedSlider = document.getElementById('speedSlider');
   const speedLabel = document.getElementById('speedLabel');
+  const speedCycleBtn = document.getElementById('speedCycleBtn');
   const songStatPill = document.getElementById('songStatPill');
   const songTipBar = document.getElementById('songTipBar');
 
@@ -95,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const rangeLabel = document.getElementById('rangeLabel');
   const miniRangeBar = document.getElementById('miniRangeBar');
   const miniWindow = document.getElementById('miniWindow');
+  const dualRowBtn = document.getElementById('dualRowBtn');
   const sustainBtn = document.getElementById('sustainBtn');
 
   // Settings Drawer elements
@@ -103,6 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeSettingsBtn = document.getElementById('closeSettingsBtn');
   const labelModeBtns = document.querySelectorAll('[data-label-mode]');
   const spanBtns = document.querySelectorAll('[data-span]');
+  const dualRowToggle = document.getElementById('dualRowToggle');
   const rainbowToggle = document.getElementById('rainbowToggle');
   const staffToggle = document.getElementById('staffToggle');
   const volumeSlider = document.getElementById('volumeSlider');
@@ -113,12 +138,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---- Core Engines ----
   const audio = new AudioEngine();
   let sustainLatched = false;
+  let hasManualSpan = Boolean(prefs.whiteKeyCount);
 
   if (prefs.instrument) audio.setInstrument(prefs.instrument);
   if (typeof prefs.volume === 'number') audio.setVolume(prefs.volume);
   if (typeof prefs.bpm === 'number') audio.setBpm(prefs.bpm);
 
   const initialSpan = prefs.whiteKeyCount || getRecommendedWhiteKeys();
+  const initialDualRow = Boolean(prefs.dualRow);
   const initialLabelMode = prefs.labelMode || 'notes';
   const initialRainbow = prefs.rainbowMode !== undefined ? prefs.rainbowMode : true;
   const initialStaff = prefs.showStaff !== undefined ? prefs.showStaff : true;
@@ -168,9 +195,31 @@ document.addEventListener('DOMContentLoaded', () => {
     sustainBtn.setAttribute('aria-pressed', String(active));
   };
 
+  const syncDualRowUI = () => {
+    const active = keyboard.isEffectivelyDualRow();
+    const suspended = keyboard.dualRow && keyboard.dualRowSuspended;
+    if (keyboardConsole) keyboardConsole.classList.toggle('dual-active', active);
+    if (dualRowBtn) {
+      dualRowBtn.classList.toggle('active', active);
+      dualRowBtn.classList.toggle('suspended', suspended);
+      dualRowBtn.setAttribute('aria-pressed', String(keyboard.dualRow));
+    }
+    if (dualRowToggle) dualRowToggle.checked = keyboard.dualRow;
+  };
+
+  const flashOctaveArrow = (dir) => {
+    const btn = dir > 0 ? octUpBtn : octDownBtn;
+    if (!btn) return;
+    btn.classList.remove('flash-shift');
+    void btn.offsetWidth;
+    btn.classList.add('flash-shift');
+    setTimeout(() => btn.classList.remove('flash-shift'), 550);
+  };
+
   const keyboard = new KeyboardUI(keyboardEl, {
     startMidi: 60, // C4
     whiteKeyCount: initialSpan,
+    dualRow: initialDualRow,
     labelMode: initialLabelMode,
     rainbowMode: initialRainbow,
     onNoteOn: (midi, velocity) => {
@@ -188,9 +237,13 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     onRangeChange: (startMidi, endMidi) => {
       updateRangeDisplay(startMidi, endMidi);
+      syncDualRowUI();
       if (learning && learning.mode === 'theory') {
         renderChordPads();
       }
+    },
+    onAutoShift: (dir) => {
+      flashOctaveArrow(dir);
     },
     onSustainKey: (down) => {
       dismissAudioHint();
@@ -309,8 +362,11 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.classList.toggle('active', btn.dataset.songStyle === learning.songStyle);
     });
     songPlayBtn.textContent = learning.songPlaying ? '■ Stop' : '▶ Start';
-    speedSlider.value = String(Math.round(learning.speedMultiplier * 100));
-    speedLabel.textContent = `${Math.round(learning.speedMultiplier * 100)}%`;
+    const pct = Math.round(learning.speedMultiplier * 100);
+    speedSlider.value = String(pct);
+    speedLabel.textContent = `${pct}%`;
+    if (speedCycleBtn) speedCycleBtn.textContent = `${pct}%`;
+    syncDualRowUI();
 
     const totalEv = learning.song.events.length;
     const doneEv = Math.min(totalEv, learning.hitEvents.size);
@@ -409,6 +465,16 @@ document.addEventListener('DOMContentLoaded', () => {
     learning.setSpeedMultiplier(val / 100);
   });
 
+  if (speedCycleBtn) {
+    const speedStops = [60, 75, 90, 100, 115];
+    speedCycleBtn.addEventListener('click', () => {
+      dismissAudioHint();
+      const cur = Math.round(learning.speedMultiplier * 100);
+      const next = speedStops.find((s) => s > cur) ?? speedStops[0];
+      learning.setSpeedMultiplier(next / 100);
+    });
+  }
+
   // ---- Wire Theory Explorer Events ----
   rootSelect.addEventListener('change', () => {
     dismissAudioHint();
@@ -459,14 +525,60 @@ document.addEventListener('DOMContentLoaded', () => {
   octDownBtn.addEventListener('click', () => keyboard.shiftOctave(-1));
   octUpBtn.addEventListener('click', () => keyboard.shiftOctave(1));
 
-  miniRangeBar.addEventListener('pointerdown', (e) => {
+  // Smooth tap-or-drag mini piano range scroller
+  let miniDragging = false;
+  const scrubMiniRange = (clientX) => {
     const rect = miniRangeBar.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const targetCenter = 36 + Math.round(ratio * 60);
-    const halfSpan = Math.round(((keyboard.whiteKeyCount / 7) * 12) / 2);
-    const desiredStart = Math.max(36, Math.min(72, targetCenter - halfSpan));
-    keyboard.setRange(desiredStart, keyboard.whiteKeyCount);
+    const spanSemitones = keyboard.isEffectivelyDualRow()
+      ? 24
+      : Math.round((keyboard.whiteKeyCount / 7) * 12);
+    const halfSpan = Math.round(spanSemitones / 2);
+    const maxStart = keyboard.isEffectivelyDualRow() ? 72 : 84;
+    const desiredStart = Math.max(36, Math.min(maxStart, targetCenter - halfSpan));
+    if (desiredStart !== keyboard.startMidi) {
+      keyboard.setRange(desiredStart, keyboard.whiteKeyCount);
+    }
+  };
+
+  miniRangeBar.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    miniDragging = true;
+    miniRangeBar.classList.add('dragging');
+    try { miniRangeBar.setPointerCapture(e.pointerId); } catch {}
+    scrubMiniRange(e.clientX);
   });
+  miniRangeBar.addEventListener('pointermove', (e) => {
+    if (!miniDragging) return;
+    scrubMiniRange(e.clientX);
+  });
+  const endMiniDrag = () => {
+    if (!miniDragging) return;
+    miniDragging = false;
+    miniRangeBar.classList.remove('dragging');
+  };
+  miniRangeBar.addEventListener('pointerup', endMiniDrag);
+  miniRangeBar.addEventListener('pointercancel', endMiniDrag);
+
+  const toggleDualRow = (enabled) => {
+    keyboard.setDualRow(enabled);
+    savePrefs({ dualRow: enabled });
+    syncDualRowUI();
+    stage.resize();
+    if (learning.mode === 'songs' && enabled) {
+      stage.owlSay('2-Row mode activates in Free Play, Scales & Ear Training!', 'happy', 2.8);
+    } else if (enabled) {
+      stage.owlSay('2-Row piano ready — play 2 big octaves at once! ✨', 'happy', 2.6);
+    }
+  };
+
+  if (dualRowBtn) {
+    dualRowBtn.addEventListener('click', () => {
+      dismissAudioHint();
+      toggleDualRow(!keyboard.dualRow);
+    });
+  }
 
   sustainBtn.addEventListener('click', () => {
     dismissAudioHint();
@@ -478,6 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const syncSettingsUI = () => {
     labelModeBtns.forEach((b) => b.classList.toggle('active', b.dataset.labelMode === keyboard.labelMode));
     spanBtns.forEach((b) => b.classList.toggle('active', Number(b.dataset.span) === keyboard.whiteKeyCount));
+    if (dualRowToggle) dualRowToggle.checked = keyboard.dualRow;
     rainbowToggle.checked = keyboard.rainbowMode;
     staffToggle.checked = stage.showStaff;
     volumeSlider.value = String(Math.round(audio.volume * 100));
@@ -519,11 +632,18 @@ document.addEventListener('DOMContentLoaded', () => {
   spanBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
       const span = Number(btn.dataset.span);
+      hasManualSpan = true;
       keyboard.setRange(keyboard.startMidi, span);
       savePrefs({ whiteKeyCount: span });
       syncSettingsUI();
     });
   });
+
+  if (dualRowToggle) {
+    dualRowToggle.addEventListener('change', () => {
+      toggleDualRow(dualRowToggle.checked);
+    });
+  }
 
   rainbowToggle.addEventListener('change', () => {
     keyboard.setRainbowMode(rainbowToggle.checked);
@@ -550,13 +670,36 @@ document.addEventListener('DOMContentLoaded', () => {
     savePrefs({ bpm });
   });
 
-  // ---- Responsive Canvas Resize Observer ----
+  // ---- Responsive Canvas Resize & Orientation Adaptation ----
+  let lastEffectiveDual = keyboard.isEffectivelyDualRow();
+  const handleViewportAdapt = () => {
+    const nowDual = keyboard.isEffectivelyDualRow();
+    let needsRender = nowDual !== lastEffectiveDual;
+    lastEffectiveDual = nowDual;
+
+    if (!hasManualSpan && !nowDual) {
+      const rec = getRecommendedWhiteKeys();
+      if (rec !== keyboard.whiteKeyCount) {
+        keyboard.setRange(keyboard.startMidi, rec);
+        needsRender = false;
+      }
+    }
+
+    if (needsRender) {
+      keyboard.render();
+      updateRangeDisplay(keyboard.startMidi, keyboard.getEndMidi());
+    }
+    syncDualRowUI();
+    stage.resize();
+  };
   const ro = new ResizeObserver(() => stage.resize());
   ro.observe(stageArea);
-  window.addEventListener('resize', () => stage.resize());
+  window.addEventListener('resize', handleViewportAdapt);
+  window.addEventListener('orientationchange', () => setTimeout(handleViewportAdapt, 150));
 
   // ---- Initial Render Sync ----
   updateRangeDisplay(keyboard.startMidi, keyboard.getEndMidi());
+  syncDualRowUI();
   syncLearningUI();
   syncSettingsUI();
 });

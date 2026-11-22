@@ -4,13 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Starlight Keys" />
   <meta name="theme-color" content="#16122e" />
   <title>Starlight Keys — Magical Learning Piano</title>
 
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231b1738'/%3E%3Crect x='10' y='26' width='11' height='28' rx='3' fill='%23fffaf0'/%3E%3Crect x='23' y='26' width='11' height='28' rx='3' fill='%23fffaf0'/%3E%3Crect x='36' y='26' width='11' height='28' rx='3' fill='%23fffaf0'/%3E%3Crect x='49' y='26' width='6' height='28' rx='2' fill='%23fffaf0'/%3E%3Crect x='18' y='26' width='7' height='17' rx='2' fill='%2319142c'/%3E%3Crect x='31' y='26' width='7' height='17' rx='2' fill='%2319142c'/%3E%3Cpath d='M32 6l2.6 6.4L41 15l-6.4 2.6L32 24l-2.6-6.4L23 15l6.4-2.6z' fill='%23ffe066'/%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png" />
+  <link rel="icon" type="image/png" href="./icons/icon-180.png" />
 
   <!-- Friendly storybook rounded fonts with instant graceful system fallbacks -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -87,21 +89,23 @@
 
         <!-- LEARN SONGS PANEL -->
         <div class="ribbon-panel" data-panel="songs">
-          <div class="ribbon-row">
-            <select id="songSelect" class="glass-select" aria-label="Select Song"></select>
+          <div class="ribbon-row songs-row">
+            <select id="songSelect" class="glass-select song-select" aria-label="Select Song"></select>
 
-            <div class="segmented" role="group" aria-label="Practice Style">
+            <button id="songPlayBtn" class="pill-btn primary song-play-btn">▶ Start</button>
+
+            <div class="segmented song-style-group" role="group" aria-label="Practice Style">
               <button class="seg-btn active" data-song-style="wait" title="Waits for you to hit each note">Wait</button>
               <button class="seg-btn" data-song-style="play" title="Play along in tempo">Tempo</button>
               <button class="seg-btn" data-song-style="demo" title="Listen and watch first">Listen</button>
             </div>
 
-            <button id="songPlayBtn" class="pill-btn primary">▶ Start</button>
-
             <label class="speed-chip" title="Practice Speed">
               <span id="speedLabel">100%</span>
               <input id="speedSlider" type="range" min="50" max="125" step="5" value="100" />
             </label>
+
+            <button id="speedCycleBtn" class="pill-btn speed-cycle-btn" title="Tap to change speed">100%</button>
 
             <span class="stat-pill" id="songStatPill">0 / 0</span>
           </div>
@@ -144,12 +148,12 @@
 
       <!-- Subtle First-Tap Audio Hint (auto-dismisses on first tap/key) -->
       <div class="audio-hint" id="audioHint">
-        <span>✨ Tap any key to awaken the sound</span>
+        <span id="audioHintText">✨ Tap any key to awaken the sound</span>
       </div>
     </main>
 
     <!-- ==================== KEYBOARD CONSOLE ==================== -->
-    <section class="keyboard-console" aria-label="Interactive Piano Keyboard">
+    <section class="keyboard-console" id="keyboardConsole" aria-label="Interactive Piano Keyboard">
       <!-- Walnut & Brass Keybed Rail -->
       <div class="keybed-rail">
         <div class="rail-left">
@@ -157,13 +161,18 @@
           <span class="range-label" id="rangeLabel">C4 – C6</span>
           <button id="octUpBtn" class="rail-btn" title="Octave Up (X)" aria-label="Octave Up">›</button>
 
-          <!-- Interactive Full-Range Mini Piano Bar -->
-          <div class="mini-range-bar" id="miniRangeBar" title="Tap to jump octaves">
+          <!-- Interactive Draggable Full-Range Mini Piano Bar -->
+          <div class="mini-range-bar" id="miniRangeBar" title="Tap or drag to slide across octaves">
             <div class="mini-window" id="miniWindow"></div>
           </div>
         </div>
 
         <div class="rail-right">
+          <button id="dualRowBtn" class="rail-pill-btn" title="Stack 2 Octaves (Great for iPhone Portrait!)" aria-pressed="false">
+            <span class="dual-icon" aria-hidden="true">▤</span>
+            <span>2 Rows</span>
+          </button>
+
           <button id="sustainBtn" class="sustain-pedal" title="Sustain Pedal (Hold Spacebar or Tap)" aria-pressed="false">
             <span class="pedal-gem"></span>
             <span class="pedal-text">Sustain</span>
@@ -207,6 +216,14 @@
             <button class="seg-btn active" data-span="15">2 Oct</button>
             <button class="seg-btn" data-span="22">3 Oct</button>
           </div>
+        </div>
+
+        <div class="setting-row">
+          <span>📱 2-Row Stacked Keyboard (2 Big Octaves)</span>
+          <label class="switch">
+            <input type="checkbox" id="dualRowToggle" />
+            <span class="slider"></span>
+          </label>
         </div>
 
         <div class="setting-row">
